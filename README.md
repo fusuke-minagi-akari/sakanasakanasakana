@@ -56,6 +56,16 @@ cd ~/sakanasakanasakana
 - 既存の実ファイルは `~/backup/<相対パス>` に退避してから symlink へ置換（破壊なし）。
 - リポジトリ内を編集すれば即反映（`config.toml` 編集後 `herdr server reload-config`／スクリプト編集後 `launchctl kickstart -k gui/$UID/dev.herdr.branchlabels`）。
 
+### Claude Code に OS 適応させる / Let Claude Code adapt it
+
+依存インストールやサービス登録（launchd / systemd）は OS で異なる。新マシンで clone 後、Claude Code にこう頼めば `SETUP.md` の手順に従って自動でやる:
+
+```
+このリポジトリをこのマシンにセットアップして
+```
+
+Claude Code はリポジトリ root の `CLAUDE.md` を自動で読み、`SETUP.md`（OS 判定・依存表・サービス登録・per-user config・検証・NDA ガードレール）に沿って適応させる。手動でやる場合も `SETUP.md` がそのまま手順書。
+
 ## 初回セットアップの手当て / Post-install
 
 1. **herdr state hook（herdr 管理）** — `~/.claude/hooks/herdr-agent-state.sh` は herdr が生成・上書きするため追跡しない。再生成:
