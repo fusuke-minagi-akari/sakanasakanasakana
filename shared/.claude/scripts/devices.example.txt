@@ -1,0 +1,9 @@
+# Claude Code devices — one per line
+# Format: <ssh-host> <display-name>
+# Use "local" as host for this machine
+# Example:
+#   local          MacBook
+#   user@server1   Dev-Server
+#   user@server2   Lab-PC
+local  MacBook
+# user@192.168.x.x  Dev-Box   ← add your real devices here (kept local; gitignored)

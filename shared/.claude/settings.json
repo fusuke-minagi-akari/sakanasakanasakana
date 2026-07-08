@@ -1,0 +1,148 @@
+{
+  "enabledPlugins": {
+    "caveman@caveman": true
+  },
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "https://d25nyrwm2wqzzf.cloudfront.net",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_RESOURCE_ATTRIBUTES": "user.email=fusuke.minagi@akariinc.co.jp"
+  },
+  "extraKnownMarketplaces": {
+    "akari-awesome-cc-plugins": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/AKARI-Inc/awesome-cc.git"
+      }
+    },
+    "caveman": {
+      "source": {
+        "repo": "JuliusBrussee/caveman",
+        "source": "github"
+      }
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "python3 ~/.claude/skills/token-usage/session_export.py > /tmp/session_export.log 2>&1",
+            "type": "command"
+          },
+          {
+            "command": "bash \"$HOME/.claude/hooks/herdr-claude-done.sh\"",
+            "timeout": 10,
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
+  "language": "english, japanese as secondary",
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Bash(rm :*)",
+      "Bash(rm -rf:*)",
+      "Bash(rm -r:*)",
+      "Bash(rm -f:*)",
+      "Bash(rmdir:*)",
+      "Bash(shred:*)",
+      "Bash(unlink:*)",
+      "Bash(truncate:*)",
+      "Bash(srm:*)",
+      "Bash(trash:*)",
+      "Bash(rsync --delete:*)",
+      "Bash(rsync *--delete:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker rmi:*)",
+      "Bash(docker container rm:*)",
+      "Bash(docker container prune:*)",
+      "Bash(docker system prune:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(docker volume prune:*)",
+      "Bash(docker network rm:*)",
+      "Bash(docker network prune:*)",
+      "Bash(docker image prune:*)",
+      "Bash(docker compose down --volumes:*)",
+      "Bash(docker compose down -v:*)",
+      "Bash(vagrant destroy:*)",
+      "Bash(vboxmanage unregistervm:*)",
+      "Bash(virsh destroy:*)",
+      "Bash(virsh undefine:*)",
+      "Bash(conda remove:*)",
+      "Bash(conda env remove:*)",
+      "Bash(pyenv uninstall:*)",
+      "Bash(pipenv --rm:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)",
+      "Bash(halt:*)",
+      "Bash(poweroff:*)",
+      "Bash(systemctl stop:*)",
+      "Bash(systemctl disable:*)",
+      "Bash(launchctl unload:*)",
+      "Bash(kill :*)",
+      "Bash(kill -9:*)",
+      "Bash(killall:*)",
+      "Bash(pkill:*)",
+      "Bash(mkfs:*)",
+      "Bash(fdisk:*)",
+      "Bash(dd :*)",
+      "Bash(format:*)",
+      "Bash(diskutil eraseDisk:*)",
+      "Bash(diskutil eraseVolume:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -f:*)",
+      "Bash(git clean -fd:*)",
+      "Bash(git clean -fx:*)",
+      "Bash(git branch -D:*)",
+      "Bash(git checkout -- .:*)",
+      "Bash(git restore .:*)",
+      "Bash(ssh *rm :*)",
+      "Bash(ssh *rm -rf:*)",
+      "Bash(ssh *shutdown:*)",
+      "Bash(ssh *reboot:*)",
+      "Bash(git push*)",
+      "Bash(git push --force*)",
+      "Bash(rm -rf*)",
+      "Bash(rm -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git checkout -- *)",
+      "Bash(git clean*)",
+      "Bash(curl*)",
+      "Bash(wget*)",
+      "Bash(gh pr create*)",
+      "Bash(gh issue create*)",
+      "Bash(npm publish*)",
+      "Bash(pip install*)",
+      "Bash(brew install*)",
+      "Bash(sudo*)"
+    ]
+  },
+  "skipAutoPermissionPrompt": true,
+  "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "statusLine": {
+    "command": "bash \"$HOME/.claude/plugins/cache/caveman/caveman/63e797cd753b/hooks/caveman-statusline.sh\"",
+    "type": "command"
+  },
+  "theme": "dark-ansi",
+  "tui": "fullscreen"
+}

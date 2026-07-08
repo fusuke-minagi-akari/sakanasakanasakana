@@ -1,0 +1,16 @@
+{
+  "slack_user_id": "<YOUR_SLACK_USER_ID>",
+  "slack_display_name": "<YOUR_NAME>",
+  "notion_user_id": "<YOUR_NOTION_USER_ID>",
+  "notion_user_name": "<YOUR_NAME>",
+  "nippo_mentor_id": "<MENTOR_SLACK_ID>",
+  "nippo_mentor_name": "<MENTOR_NAME>",
+  "nippo_channel": "#<your-nippo-channel>",
+  "last_updated": "2026-04-30",
+  "channel_groups": {
+    "<group-label>": {
+      "channel_ids": ["<CHANNEL_ID>"],
+      "channel_names": ["<channel-name>"]
+    }
+  }
+}
