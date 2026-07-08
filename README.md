@@ -5,6 +5,16 @@ herdr + Claude Code のターミナル環境を保存・バージョン管理・
 
 Personal dotfiles for [herdr](https://herdr.dev) + Claude Code. `install.sh` symlinks each tracked file into `$HOME`, backing up anything it would overwrite to `~/backup`.
 
+## これは何をするか / What it does
+
+- **`show <path>`** — ファイルを herdr + Kitty 用の in-terminal ビューアへ自動振り分け（画像→`chafa`、動画/音声→`mpv`、markdown→`glow`、他→pager）。
+- **git ブランチ可視化デーモン** — herdr の workspace サイドバー + 各 pane ボーダーに `<repo> · <branch> · <N>Δ · PR#<n>` を表示。macOS は launchd、Linux は systemd で常駐。
+- **herdr 本体設定** — 通知・サウンド・テーマ・キーバインド・kitty_graphics を再現。
+- **Claude Code 設定** — settings.json / CLAUDE.md / hooks / commands / skills / scripts をバージョン管理。
+- **1 コマンドで新マシンへ展開** — `install.sh` が symlink を張り（既存は `~/backup` へ退避）、OS 別サービスを登録。依存や launchd/systemd の差は Claude Code が `SETUP.md` を読んで吸収する。
+
+要は「herdr + Claude Code のターミナル環境まるごと」を保存・バージョン管理し、別マシンへ再現可能にするリポジトリ。
+
 ## レイアウト / Layout
 
 OS ごとに適用範囲を分ける。各ディレクトリは `$HOME` をミラーする。
@@ -43,28 +53,42 @@ sakanasakanasakana/
 | `.claude/skills/*` | カスタムスキル。 |
 | `.claude/scripts/*` | 補助スクリプト（render_table.py, md-to-pdf 等）。 |
 
-## インストール / Install
+## セットアップ & インストール / Setup & Install
+
+まず clone:
 
 ```sh
 git clone git@github.com:fusuke-minagi-akari/sakanasakanasakana.git ~/sakanasakanasakana
 cd ~/sakanasakanasakana
-./install.sh            # link + plist 生成 + example 展開 + launchd 起動
-./install.sh --dry-run  # 変更せず動作だけ表示
-./install.sh --no-load  # launchd は触らない
 ```
 
-- 既存の実ファイルは `~/backup/<相対パス>` に退避してから symlink へ置換（破壊なし）。
-- リポジトリ内を編集すれば即反映（`config.toml` 編集後 `herdr server reload-config`／スクリプト編集後 `launchctl kickstart -k gui/$UID/dev.herdr.branchlabels`）。
+以降は 2 通り。**方法 A（推奨）** は OS 差（依存インストール・launchd/systemd）まで面倒を見る。
 
-### Claude Code に OS 適応させる / Let Claude Code adapt it
+### 方法 A: Claude Code に任せる / Let Claude Code set it up
 
-依存インストールやサービス登録（launchd / systemd）は OS で異なる。新マシンで clone 後、Claude Code にこう頼めば `SETUP.md` の手順に従って自動でやる:
+clone したディレクトリで Claude Code を起動し、こう頼む:
 
 ```
 このリポジトリをこのマシンにセットアップして
 ```
 
-Claude Code はリポジトリ root の `CLAUDE.md` を自動で読み、`SETUP.md`（OS 判定・依存表・サービス登録・per-user config・検証・NDA ガードレール）に沿って適応させる。手動でやる場合も `SETUP.md` がそのまま手順書。
+Claude Code は root の `CLAUDE.md` を自動で読み、`SETUP.md` の手順（OS 判定 → 依存インストール[brew/apt] → `install.sh` → サービス登録[launchd/systemd] → herdr hook 再生成 → per-user config → 検証）に沿って適応させる。NDA ガードレール込み。
+
+### 方法 B: 手動 / Manual
+
+依存を先に入れる（[依存](#依存--dependencies) 参照）。その後:
+
+```sh
+./install.sh            # symlink + plist 生成 + example 展開 + launchd 起動
+./install.sh --dry-run  # 変更せず動作だけ表示
+./install.sh --no-load  # launchd は触らない
+```
+
+- 既存の実ファイルは `~/backup/<相対パス>` に退避してから symlink へ置換（破壊なし）。
+- リポジトリ内を編集すれば即反映（`config.toml` 編集後 `herdr server reload-config`／スクリプト編集後 `launchctl kickstart -k gui/$UID/dev.herdr.branchlabels`、Linux は `systemctl --user restart herdr-branch-labels`）。
+- Linux はサービス登録が手動（systemd user unit）。`SETUP.md` §3 にそのまま貼れる unit あり。
+
+詳細な OS 別手順書は **[`SETUP.md`](SETUP.md)**。
 
 ## 初回セットアップの手当て / Post-install
 
@@ -83,7 +107,7 @@ NDA・PII を含む値はコミット前に汎用プレースホルダへ置換�
 
 ## 依存 / Dependencies
 
-`herdr` `git` `jq` `gh` `perl`（branch-labels）、`chafa` `mpv` `glow`（`show`）。macOS 前提の箇所あり（launchd, `md5 -qs`）。Linux 対応は `linux/` に追加していく。
+`herdr` `git` `jq` `gh` `perl` `coreutils`（branch-labels デーモン）、`chafa` `mpv` `glow`（`show`）。スクリプトは cross-OS（md5 は `md5`/`md5sum` を自動判定）。OS 差はサービス管理のみ — macOS=launchd（`install.sh` が自動）、Linux=systemd user unit（`SETUP.md` §3）。OS 別の正確なパッケージ名・インストールコマンドは `SETUP.md` §1 の表を参照。
 
 ## 追跡しないもの / Not tracked
 
