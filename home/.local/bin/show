@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# show <path> — auto-route a file to the right in-terminal viewer for herdr + Kitty.
+#   image    -> chafa -f kitty        (blind-emit kitty graphics; herdr renders)
+#   video    -> mpv --vo=kitty
+#   audio    -> mpv --no-video
+#   markdown -> glow
+#   other text -> $PAGER (less)
+# Format is forced (kitty vo/-f) on purpose: herdr normalizes TERM=xterm-256color,
+# so auto-detect fails. See ~/.claude memory herdr-setup for the why.
+set -euo pipefail
+
+usage() { echo "usage: show <path>"; exit "${1:-0}"; }
+[ $# -eq 1 ] || usage 1
+case "$1" in -h|--help) usage 0 ;; esac
+
+f="$1"
+[ -e "$f" ] || { echo "show: not found: $f" >&2; exit 1; }
+[ -d "$f" ] && { echo "show: is a directory: $f" >&2; exit 1; }
+
+# tool guard: name + brew formula for the hint
+need() { command -v "$1" >/dev/null 2>&1 || { echo "show: missing '$1' — brew install $2" >&2; exit 127; }; }
+
+ext="${f##*.}"
+ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+
+route() {
+  case "$1" in
+    image) need chafa chafa; exec chafa -f kitty "$f" ;;
+    video) need mpv   mpv;   exec mpv --vo=kitty --hr-seek=no --profile=sw-fast "$f" ;;
+    audio) need mpv   mpv;   exec mpv --no-video "$f" ;;
+    md)    need glow  glow;  exec glow "$f" ;;
+    text)  exec "${PAGER:-less}" "$f" ;;
+    *)     return 1 ;;
+  esac
+}
+
+case "$ext" in
+  png|jpg|jpeg|gif|webp|bmp|tif|tiff|svg|heic|heif|avif|ico) route image ;;
+  mp4|mov|mkv|webm|avi|m4v|flv|wmv|mpg|mpeg|ts|3gp)          route video ;;
+  mp3|wav|flac|aac|ogg|opus|m4a)                            route audio ;;
+  md|markdown|mdown|mkd)                                     route md ;;
+  *)
+    # unknown extension -> sniff mime type
+    mime="$(file -b --mime-type "$f" 2>/dev/null || echo '')"
+    case "$mime" in
+      image/*)                       route image ;;
+      video/*)                       route video ;;
+      audio/*)                       route audio ;;
+      text/markdown)                 route md ;;
+      text/*|application/json|application/xml) route text ;;
+      *) echo "show: unsupported type (${mime:-unknown}) for $f" >&2; exit 2 ;;
+    esac ;;
+esac

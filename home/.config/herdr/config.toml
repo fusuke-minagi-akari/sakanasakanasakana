@@ -1,0 +1,51 @@
+# herdr config — Claude-focused. Partial: unset keys use built-in defaults.
+# View all defaults: herdr --default-config
+# Reload after edit:  herdr server reload-config
+
+# --- Notifications: ping on Claude blocked (needs approval) / done ---
+[ui.toast]
+delivery = "system"      # macOS Notification Center
+delay_seconds = 1
+
+# --- Audio cue per agent ---
+[ui.sound]
+enabled = true
+# Custom mp3s. Relative paths resolve from ~/.config/herdr/. Drop files then uncomment.
+# path         = "sounds/notification.mp3"  # all cues
+# done_path    = "sounds/done.mp3"           # finished cue only
+# request_path = "sounds/request.mp3"        # needs-attention cue only
+
+[ui.sound.agents]
+claude = "on"
+
+# --- Auto-resume Claude sessions after server/host restart (integration v7 ok) ---
+[session]
+resume_agents_on_restore = true
+
+# --- Hotkey: spawn a Claude pane. prefix = ctrl+b by default ---
+[[keys.command]]
+key = "prefix+alt+c"
+type = "pane"
+command = "claude"
+description = "new Claude Code pane"
+
+[ui]
+agent_panel_sort = "priority"
+show_agent_labels_on_pane_borders = true
+
+[theme]
+name = "one-light"
+auto_switch = false
+# Override individual color tokens on top of the base theme.
+# Accepts hex (#rrggbb), named colors, rgb(r,g,b), or panel_bg = "reset".
+# [theme.custom]
+# accent   = "#d75f5f"
+# panel_bg = "reset"
+# green    = "#a6e3a1"
+# red      = "#ff6188"
+
+[experimental]
+pane_history = false
+# Inline image rendering via Kitty graphics protocol. Needs a Kitty-graphics outer terminal.
+# Active once you launch herdr inside Kitty.app (no effect in Apple Terminal).
+kitty_graphics = true
