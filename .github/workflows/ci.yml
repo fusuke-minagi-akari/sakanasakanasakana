@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck installer + deps layer
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shellcheck
+          shellcheck install.sh lib/*.sh
+
+  dry-run:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: dry-run full install (deps + link, no changes)
+        run: ./install.sh --dry-run --no-load
+      - name: dry-run without deps
+        run: ./install.sh --dry-run --no-deps --no-load

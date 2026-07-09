@@ -1,0 +1,9 @@
+# Arch deps (pacman). One per line; # starts a comment.
+glow          # markdown renderer
+chafa         # image -> kitty graphics in `show`
+mpv           # video playback (--vo=kitty)
+jq            # JSON parsing in herdr-branch-labels.sh
+github-cli    # GitHub CLI (provides `gh`)
+git           # branch detection
+file          # MIME fallback in `show`
+kitty         # Arch ships a current kitty

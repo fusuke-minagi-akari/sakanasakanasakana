@@ -20,20 +20,23 @@
 # run `herdr integration install claude` to create it. See README.
 #
 # Usage:
-#   ./install.sh            # link + render plist + seed examples + load launchd
+#   ./install.sh            # install deps + link + render plist + seed + load launchd
 #   ./install.sh --dry-run  # print actions, change nothing
 #   ./install.sh --no-load  # skip the launchd (re)load step
+#   ./install.sh --no-deps  # skip dependency install (herdr/kitty/CLI tools)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP="$HOME/backup"
 DRY=0
 LOAD=1
+DEPS=1
 
 for a in "$@"; do
   case "$a" in
     --dry-run) DRY=1 ;;
     --no-load) LOAD=0 ;;
+    --no-deps) DEPS=0 ;;
     -h|--help) sed -n '2,30p' "$0"; exit 0 ;;
     *) echo "unknown arg: $a" >&2; exit 2 ;;
   esac
@@ -74,6 +77,17 @@ seed() {
   run "cp '$src' '$dest'"
   say "  seed  $dest (fill in your values)"
 }
+
+# --- dependencies (herdr, kitty, CLI tools) before linking ---
+# State-aware: installs on a bare machine, fills gaps on a half-built one,
+# cleans + reinstalls corrupt pieces, skips anything already healthy.
+if [ "$DEPS" = 1 ] && [ "$OS" != unknown ]; then
+  # shellcheck source=lib/deps.sh
+  . "$REPO/lib/deps.sh"
+  install_deps
+else
+  say "deps: skipped"
+fi
 
 for layer in "${LAYERS[@]}"; do
   base="$REPO/$layer"

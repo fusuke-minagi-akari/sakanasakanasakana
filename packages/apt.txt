@@ -1,0 +1,10 @@
+# Debian/Ubuntu deps (apt). One per line; # starts a comment.
+# Drives `show` (chafa/mpv/glow) and the herdr-branch-labels daemon (gh/jq/git).
+glow          # markdown renderer
+chafa         # image -> kitty graphics in `show`
+mpv           # video playback (--vo=kitty)
+jq            # JSON parsing in herdr-branch-labels.sh
+gh            # GitHub CLI — PR numbers in branch labels
+git           # branch detection
+file          # MIME fallback in `show`
+# kitty is installed separately (official installer) — apt build too old.
