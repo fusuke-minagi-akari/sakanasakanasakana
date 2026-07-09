@@ -1,0 +1,8 @@
+# Global npm packages. One per line, '#' comments ignored.
+# These are normally auto-fetched by `npx --yes <pkg>` on first use, so installing
+# them globally is OPTIONAL — do it for offline use or to pin versions.
+# Install: npm install -g $(grep -vE '^\s*#|^\s*$' deps/npm-global.txt)
+# bootstrap.sh installs these only with --full.
+
+@mermaid-js/mermaid-cli   # /diagram, kalmia PNG, md-to-pdf-with-mermaid
+md-to-pdf                 # report skill (md → PDF; bundles Chromium)

@@ -26,35 +26,27 @@ Translate package names accordingly; the apt names are the reference.
 
 ## 1. Install dependencies
 
-Check each with `command -v <bin>`; install only what's missing.
+Run the bootstrap — it reads `deps/` and installs what's missing for the OS:
 
-| Purpose | Binary | macOS (brew) | Linux (apt) |
-|---|---|---|---|
-| terminal multiplexer | `herdr` | see note ¹ | see note ¹ |
-| git | `git` | `git` | `git` |
-| JSON parse (daemon) | `jq` | `jq` | `jq` |
-| GitHub CLI (PR labels) | `gh` | `gh` | `gh` ² |
-| timeout guard (daemon) | `perl` | preinstalled | `perl` |
-| md5 (daemon) | `md5`/`md5sum` | preinstalled | `coreutils` |
-| image viewer (`show`) | `chafa` | `chafa` | `chafa` |
-| video/audio (`show`) | `mpv` | `mpv` | `mpv` |
-| markdown (`show`) | `glow` | `glow` | `glow` ³ |
-
-¹ **herdr** is not in a public package repo — install from https://herdr.dev
-   (typically `~/.local/bin/herdr`). Confirm with the user before downloading.
-² `gh` on Debian/Ubuntu needs the GitHub apt repo; or use `brew`/`snap`.
-³ `glow` may need the Charm apt repo, or `brew`, or `go install`. `show` degrades
-   gracefully (only markdown routing is affected) if `glow` is absent.
-
-macOS one-liner (only for missing bins):
 ```sh
-brew install jq gh chafa mpv glow
+./bootstrap.sh            # core deps (brew bundle | apt/dnf/pacman + pip)
+./bootstrap.sh --dry-run  # preview
+./bootstrap.sh --full     # + optional (npm globals, uv/go-task, kitty, xvfb…)
 ```
-Linux/apt one-liner (only for missing bins):
-```sh
-sudo apt-get update && sudo apt-get install -y jq perl coreutils chafa mpv
-# gh + glow: add their apt repos, or install via brew/snap/go — see notes.
-```
+
+**`DEPENDENCIES.md` is the authority** on which functionality needs what (full
+matrix, per-OS package names, core vs optional). Consult it if a feature fails
+or you need to install selectively.
+
+Things `bootstrap.sh` does NOT install (do these by hand, confirm with user):
+- **`herdr`** — not in any package repo; install from https://herdr.dev (→ `~/.local/bin/herdr`).
+- **`caveman` plugin** — via Claude Code plugin marketplace (statusline/caveman mode).
+- **MCP servers** (Notion/Slack/Google) — via claude.ai auth; needed by nippo/standup/research/kalmia.
+- **`melchior-headless` wrapper** (`~/.local/share/melchior-headless/`) + BetterDisplay — separate artifacts.
+
+On Debian/Ubuntu, `gh` and `glow` may need their own apt repos (GitHub CLI repo /
+Charm repo) — see `deps/packages-apt.txt` notes. Features degrade gracefully when
+an optional dep is missing (`show` skips only the affected file type, etc.).
 
 ---
 

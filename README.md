@@ -21,7 +21,16 @@ OS ごとに適用範囲を分ける。各ディレクトリは `$HOME` をミ�
 
 ```
 sakanasakanasakana/
-├── install.sh          # uname 判定 → shared/ + <os>/ を反映
+├── bootstrap.sh        # uname 判定 → 依存インストール（deps/ を参照）
+├── install.sh          # uname 判定 → shared/ + <os>/ を $HOME へ symlink
+├── DEPENDENCIES.md     # 機能 → 依存マトリクス（何が何を要るか）
+├── SETUP.md            # OS 適応の手順書（Claude Code が読む）
+├── CLAUDE.md           # Claude Code 自動読込のプロジェクト指示 + ガードレール
+├── deps/               # マシン可読マニフェスト
+│   ├── Brewfile              # macOS
+│   ├── packages-apt.txt      # Linux
+│   ├── requirements.txt      # pip
+│   └── npm-global.txt        # node globals
 ├── shared/             # 全OS共通（$HOME ミラー）
 │   ├── .local/bin/           show, herdr-branch-labels.sh
 │   ├── .config/herdr/        config.toml
@@ -76,13 +85,14 @@ Claude Code は root の `CLAUDE.md` を自動で読み、`SETUP.md` の手順�
 
 ### 方法 B: 手動 / Manual
 
-依存を先に入れる（[依存](#依存--dependencies) 参照）。その後:
-
 ```sh
+./bootstrap.sh          # OS 判定して依存をインストール（deps/ を参照）
 ./install.sh            # symlink + plist 生成 + example 展開 + launchd 起動
 ./install.sh --dry-run  # 変更せず動作だけ表示
 ./install.sh --no-load  # launchd は触らない
 ```
+
+`bootstrap.sh` は `deps/`（Brewfile / packages-apt.txt / requirements.txt / npm-global.txt）を読んで足りない物だけ入れる。`--dry-run`・`--full` あり。どの機能が何を要るかは **[`DEPENDENCIES.md`](DEPENDENCIES.md)**（機能→依存マトリクス）。
 
 - 既存の実ファイルは `~/backup/<相対パス>` に退避してから symlink へ置換（破壊なし）。
 - リポジトリ内を編集すれば即反映（`config.toml` 編集後 `herdr server reload-config`／スクリプト編集後 `launchctl kickstart -k gui/$UID/dev.herdr.branchlabels`、Linux は `systemctl --user restart herdr-branch-labels`）。
@@ -107,7 +117,9 @@ NDA・PII を含む値はコミット前に汎用プレースホルダへ置換�
 
 ## 依存 / Dependencies
 
-`herdr` `git` `jq` `gh` `perl` `coreutils`（branch-labels デーモン）、`chafa` `mpv` `glow`（`show`）。スクリプトは cross-OS（md5 は `md5`/`md5sum` を自動判定）。OS 差はサービス管理のみ — macOS=launchd（`install.sh` が自動）、Linux=systemd user unit（`SETUP.md` §3）。OS 別の正確なパッケージ名・インストールコマンドは `SETUP.md` §1 の表を参照。
+全機能→依存の完全なマトリクス（機能ごとに何が core / optional か、OS 別パッケージ名）は **[`DEPENDENCIES.md`](DEPENDENCIES.md)**。マシン可読なマニフェストは `deps/`、インストールは `./bootstrap.sh`。
+
+ざっくり: `herdr`（herdr.dev、非パッケージ）+ `git jq gh perl coreutils`（daemon）、`chafa mpv glow`（show）、`node`+`npx`（diagram/kalmia/report）、`python3`+`matplotlib`+CJK フォント（表 PNG）。スクリプトは cross-OS（md5 自動判定）。OS 差はサービス管理のみ（macOS=launchd 自動 / Linux=systemd user unit、`SETUP.md` §3）。`herdr`・caveman プラグイン・MCP サーバ・melchior wrapper は手動（`DEPENDENCIES.md` §6）。
 
 ## 追跡しないもの / Not tracked
 

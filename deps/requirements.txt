@@ -1,0 +1,3 @@
+# pip dependencies. Install: python3 -m pip install -r deps/requirements.txt
+# Everything else the skills use is Python stdlib (json, urllib, socket, argparse...).
+matplotlib   # render_table.py — PNG tables (summarize-to-slack)
