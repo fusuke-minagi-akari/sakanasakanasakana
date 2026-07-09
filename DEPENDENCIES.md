@@ -1,7 +1,8 @@
 # DEPENDENCIES.md — what each functionality needs
 
-Every capability in this repo mapped to its dependencies, per OS. Install with
-`./bootstrap.sh` (reads the manifests in `deps/`), or by hand from the tables.
+Every capability in this repo mapped to its dependencies, per OS. Terminal stack
+installs via `./install.sh` (→ `lib/deps.sh` + `packages/*.txt`); Claude-feature
+extras via `./bootstrap.sh` (→ `deps/`). See "Install summary" at the bottom.
 Legend: **core** = needed for the feature at all · **opt** = graceful degrade /
 optional · 🍎 macOS-builtin · 🐧 Linux-only.
 
@@ -43,7 +44,7 @@ kitty-graphics terminal, `show` still runs but images/video won't render inline.
 | `gh` | resolve PR number | `gh` | `gh` ⁴ |
 | `perl` | timeout guard (no `timeout` on macOS) | 🍎 builtin | `perl` |
 | `md5`/`md5sum` | cache key hash | 🍎 builtin | `coreutils` |
-| service mgr | keep it running | 🍎 launchd (auto) | 🐧 systemd `--user` (SETUP.md §3) |
+| service mgr | keep it running | 🍎 launchd (auto) | 🐧 systemd `--user` (SETUP.md §2) |
 
 ³ **herdr** is not in any package repo — install from https://herdr.dev
 (typically `~/.local/bin/herdr`). ⁴ `gh` on Debian/Ubuntu needs the GitHub apt repo.
@@ -96,15 +97,27 @@ auth — not `brew`/`apt`:
 
 ---
 
-## Install summary
+## Install summary — two layers
+
+**Layer 1 — terminal stack (primary, cross-OS, state-aware).** Part of
+`./install.sh` (via `lib/deps.sh`); installs herdr, kitty, and the CLI tools for
+`show` + the branch-labels daemon. Package lists: `packages/brew.txt` (macOS),
+`packages/apt.txt` (Debian/Ubuntu), `packages/pacman.txt` (Arch).
 
 ```sh
-./bootstrap.sh            # auto: uname → brew bundle | apt + pip + (npm)
-./bootstrap.sh --dry-run  # print what it would install
-./bootstrap.sh --full     # also pre-install npm globals + optional (melchior/kitty)
+./install.sh              # deps (herdr/kitty/CLI) + link dotfiles + service
+./install.sh --dry-run    # preview
+./install.sh --no-deps    # link only, skip dependency install
 ```
 
-Manifests it reads: `deps/Brewfile` (macOS), `deps/packages-apt.txt` (Linux),
-`deps/requirements.txt` (pip), `deps/npm-global.txt` (node globals).
-**Not auto-installed** (manual, see notes above): `herdr`, `caveman` plugin, MCP
-servers, `melchior-headless` wrapper, BetterDisplay.
+**Layer 2 — Claude-feature extras (optional, additive).** `./bootstrap.sh` adds
+what layer 1 doesn't cover: node, python3+matplotlib, and (optionally) the npm
+diagram/PDF tools. Never touches the layer-1 build.
+
+```sh
+./bootstrap.sh            # node, python3, matplotlib (deps/requirements.txt)
+./bootstrap.sh --npm      # also pin npm globals (deps/npm-global.txt); else npx auto-fetches
+```
+
+**Not auto-installed** (manual — see notes above): `caveman` plugin, MCP servers,
+`melchior-headless` wrapper, BetterDisplay. (`herdr`/`kitty` ARE handled by layer 1.)

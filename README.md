@@ -21,16 +21,15 @@ OS ごとに適用範囲を分ける。各ディレクトリは `$HOME` をミ�
 
 ```
 sakanasakanasakana/
-├── bootstrap.sh        # uname 判定 → 依存インストール（deps/ を参照）
-├── install.sh          # uname 判定 → shared/ + <os>/ を $HOME へ symlink
+├── install.sh          # 依存(端末stack)インストール + shared/ + <os>/ を $HOME へ symlink
+├── lib/deps.sh         # 状態認識インストーラ（herdr/kitty/CLI、install.sh が source）
+├── packages/           # 端末stackのパッケージ一覧: brew.txt / apt.txt / pacman.txt
+├── bootstrap.sh        # 追加: Claude機能用の extras（node/python/matplotlib）
+├── deps/               # extras マニフェスト: requirements.txt(pip) / npm-global.txt
 ├── DEPENDENCIES.md     # 機能 → 依存マトリクス（何が何を要るか）
 ├── SETUP.md            # OS 適応の手順書（Claude Code が読む）
 ├── CLAUDE.md           # Claude Code 自動読込のプロジェクト指示 + ガードレール
-├── deps/               # マシン可読マニフェスト
-│   ├── Brewfile              # macOS
-│   ├── packages-apt.txt      # Linux
-│   ├── requirements.txt      # pip
-│   └── npm-global.txt        # node globals
+├── .github/workflows/  # CI（shellcheck + dry-run マトリクス）
 ├── shared/             # 全OS共通（$HOME ミラー）
 │   ├── .local/bin/           show, herdr-branch-labels.sh
 │   ├── .config/herdr/        config.toml
@@ -81,22 +80,26 @@ clone したディレクトリで Claude Code を起動し、こう頼む:
 このリポジトリをこのマシンにセットアップして
 ```
 
-Claude Code は root の `CLAUDE.md` を自動で読み、`SETUP.md` の手順（OS 判定 → 依存インストール[brew/apt] → `install.sh` → サービス登録[launchd/systemd] → herdr hook 再生成 → per-user config → 検証）に沿って適応させる。NDA ガードレール込み。
+Claude Code は root の `CLAUDE.md` を自動で読み、`SETUP.md` の手順（OS 判定 → `install.sh`[端末stack依存 + symlink + サービス] → `bootstrap.sh`[Claude機能extras] → herdr hook 再生成 → per-user config → 検証）に沿って適応させる。NDA ガードレール込み。
 
 ### 方法 B: 手動 / Manual
 
 ```sh
-./bootstrap.sh          # OS 判定して依存をインストール（deps/ を参照）
-./install.sh            # symlink + plist 生成 + example 展開 + launchd 起動
+./install.sh            # 依存(herdr/kitty/CLI) + symlink + example 展開 + launchd 起動
 ./install.sh --dry-run  # 変更せず動作だけ表示
-./install.sh --no-load  # launchd は触らない
+./install.sh --no-deps  # 依存インストールを飛ばして symlink だけ
+./bootstrap.sh          # 追加: node/python/matplotlib（/diagram, report, 表PNG 用）
 ```
 
-`bootstrap.sh` は `deps/`（Brewfile / packages-apt.txt / requirements.txt / npm-global.txt）を読んで足りない物だけ入れる。`--dry-run`・`--full` あり。どの機能が何を要るかは **[`DEPENDENCIES.md`](DEPENDENCIES.md)**（機能→依存マトリクス）。
+**2 層構成:**
+- **Layer 1（端末stack）** — `install.sh` が `lib/deps.sh` 経由で状態認識インストール（herdr, kitty, glow chafa mpv jq gh git file）。一覧は `packages/{brew,apt,pacman}.txt`。cross-OS・テスト済み — **触らない**。
+- **Layer 2（Claude機能extras、任意）** — `bootstrap.sh` が Layer 1 に無い物だけ追加（node/python/matplotlib、`--npm` で npm globals）。Layer 1 は一切触らない。
+
+機能→依存の全体は **[`DEPENDENCIES.md`](DEPENDENCIES.md)**。
 
 - 既存の実ファイルは `~/backup/<相対パス>` に退避してから symlink へ置換（破壊なし）。
 - リポジトリ内を編集すれば即反映（`config.toml` 編集後 `herdr server reload-config`／スクリプト編集後 `launchctl kickstart -k gui/$UID/dev.herdr.branchlabels`、Linux は `systemctl --user restart herdr-branch-labels`）。
-- Linux はサービス登録が手動（systemd user unit）。`SETUP.md` §3 にそのまま貼れる unit あり。
+- Linux はサービス登録が手動（systemd user unit）。`SETUP.md` §2 にそのまま貼れる unit あり。
 
 詳細な OS 別手順書は **[`SETUP.md`](SETUP.md)**。
 
@@ -117,9 +120,9 @@ NDA・PII を含む値はコミット前に汎用プレースホルダへ置換�
 
 ## 依存 / Dependencies
 
-全機能→依存の完全なマトリクス（機能ごとに何が core / optional か、OS 別パッケージ名）は **[`DEPENDENCIES.md`](DEPENDENCIES.md)**。マシン可読なマニフェストは `deps/`、インストールは `./bootstrap.sh`。
+全機能→依存の完全なマトリクス（機能ごとに何が core / optional か、OS 別パッケージ名）は **[`DEPENDENCIES.md`](DEPENDENCIES.md)**。Layer 1 一覧は `packages/*.txt`（`install.sh` 経由）、Layer 2 extras は `deps/`（`bootstrap.sh` 経由）。
 
-ざっくり: `herdr`（herdr.dev、非パッケージ）+ `git jq gh perl coreutils`（daemon）、`chafa mpv glow`（show）、`node`+`npx`（diagram/kalmia/report）、`python3`+`matplotlib`+CJK フォント（表 PNG）。スクリプトは cross-OS（md5 自動判定）。OS 差はサービス管理のみ（macOS=launchd 自動 / Linux=systemd user unit、`SETUP.md` §3）。`herdr`・caveman プラグイン・MCP サーバ・melchior wrapper は手動（`DEPENDENCIES.md` §6）。
+ざっくり: `herdr`+`kitty`（`install.sh` が自動導入）+ `git jq gh perl file`（daemon）、`chafa mpv glow`（show）、`node`+`npx`（diagram/kalmia/report）、`python3`+`matplotlib`+CJK フォント（表 PNG）。daemon の `hashkey` は macOS `md5` 前提（`md5` 無い distro では共有キーに劣化、ラベル自体は表示）。OS 差はサービス管理（macOS=launchd 自動 / Linux=systemd user unit、`SETUP.md` §2）。caveman プラグイン・MCP サーバ・melchior wrapper は手動（`DEPENDENCIES.md` §6）。
 
 ## 追跡しないもの / Not tracked
 

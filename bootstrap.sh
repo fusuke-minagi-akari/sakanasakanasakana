@@ -1,91 +1,79 @@
 #!/usr/bin/env bash
-# bootstrap.sh — install dependencies for this repo, per OS.
+# bootstrap.sh — OPTIONAL feature-extra dependencies (Claude Code power features).
 #
-# Reads the manifests in deps/ and installs what's missing:
-#   macOS : brew bundle deps/Brewfile        + pip -r deps/requirements.txt
-#   Linux : apt/dnf/pacman deps/packages-apt.txt + pip -r deps/requirements.txt
-# With --full also installs optional extras (npm globals, melchior/kitty bits).
+# The primary installer is ./install.sh (+ lib/deps.sh + packages/*.txt): it
+# installs the terminal stack — herdr, kitty, and the CLI tools `show` and the
+# branch-labels daemon need (glow chafa mpv jq gh git file). Run that first.
 #
-# Does NOT install (manual — see DEPENDENCIES.md): herdr, the caveman Claude
-# plugin, MCP servers, the melchior-headless wrapper, BetterDisplay.
+# THIS script adds only the extras that terminal stack doesn't cover, needed for
+# the Claude Code diagram/PDF/table features:
+#   * node          — /diagram, kalmia PNG, report (via npx)
+#   * python3       — skills + render_table.py
+#   * matplotlib    — table PNGs (deps/requirements.txt)
+#   * npm globals   — @mermaid-js/mermaid-cli, md-to-pdf (deps/npm-global.txt);
+#                     OPTIONAL — npx --yes auto-fetches these on first use.
+#
+# It NEVER touches the install.sh / lib/deps.sh / packages/ build. Additive only.
+# See DEPENDENCIES.md for the full functionality->dependency matrix.
 #
 # Usage:
-#   ./bootstrap.sh            # install core deps for this OS
+#   ./bootstrap.sh            # install missing feature-extras for this OS
 #   ./bootstrap.sh --dry-run  # print what it would do
-#   ./bootstrap.sh --full     # + optional extras
-# Run ./install.sh afterwards to link the dotfiles.
+#   ./bootstrap.sh --npm      # also install the npm globals (else left to npx)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DRY=0; FULL=0
+DRY=0; NPM=0
 for a in "$@"; do case "$a" in
   --dry-run) DRY=1 ;;
-  --full)    FULL=1 ;;
-  -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+  --npm)     NPM=1 ;;
+  -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
   *) echo "unknown arg: $a" >&2; exit 2 ;;
 esac; done
 
 say() { printf '%s\n' "$*"; }
 run() { say "  \$ $*"; [ "$DRY" = 1 ] || eval "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
-# emit package names from a manifest: strip inline+full-line comments, blanks, trailing ws
 manifest() { sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$REPO/deps/$1" | grep -vE '^[[:space:]]*$'; }
 
-install_macos() {
-  if ! have brew; then
-    say "!! Homebrew missing. Install: https://brew.sh  then re-run."; exit 1
-  fi
-  say "== brew bundle (deps/Brewfile) =="
-  run "brew bundle --file '$REPO/deps/Brewfile'"
-  if [ "$FULL" = 1 ]; then
-    say "== optional (--full) =="
-    run "brew install uv go-task || true"
-    run "brew install --cask kitty betterdisplay || true"
-  fi
+# pm_install <pkg...> — install via the OS package manager (only for what's missing here)
+pm_install() {
+  case "$(uname -s)" in
+    Darwin) have brew || { say "!! Homebrew missing (https://brew.sh)"; return 1; }
+            run "brew install $*" ;;
+    Linux)  if   have apt-get; then run "sudo apt-get install -y $*"
+            elif have dnf;     then run "sudo dnf install -y $*"
+            elif have pacman;  then run "sudo pacman -S --needed --noconfirm $*"
+            else say "!! no apt/dnf/pacman"; return 1; fi ;;
+  esac
 }
 
-install_linux() {
-  local pm="" inst=""
-  if   have apt-get; then pm=apt;    inst="sudo apt-get install -y"
-  elif have dnf;     then pm=dnf;    inst="sudo dnf install -y"
-  elif have pacman;  then pm=pacman; inst="sudo pacman -S --noconfirm"
-  else say "!! no supported package manager (apt/dnf/pacman)"; exit 1; fi
-  say "== $pm packages (deps/packages-apt.txt; translate names if not apt) =="
-  [ "$pm" = apt ] && run "sudo apt-get update"
-  # shellcheck disable=SC2046
-  run "$inst $(manifest packages-apt.txt | tr '\n' ' ')"
-  if [ "$FULL" = 1 ]; then
-    say "== optional (--full) =="
-    run "$inst xvfb kitty libnss3 libatk1.0-0 libgbm1 libasound2 || true"
-    have uv || run "curl -LsSf https://astral.sh/uv/install.sh | sh"
-  fi
-  say "NOTE: gh/glow may need extra apt repos — see deps/packages-apt.txt notes."
-}
+say "bootstrap: feature-extras (run ./install.sh first for the terminal stack)"
 
-install_pip() {
-  local py; py=python3; have "$py" || { say "!! python3 missing"; return; }
-  say "== pip (deps/requirements.txt) =="
-  run "$py -m pip install --user -r '$REPO/deps/requirements.txt'"
-}
+# node (for npx: mermaid-cli, md-to-pdf)
+have node || { say "node missing — installing"; pm_install node || pm_install nodejs npm || true; }
+have node && say "  ok    node ($(command -v node))"
 
-install_npm_globals() {
-  [ "$FULL" = 1 ] || { say "== npm globals: skipped (npx --yes auto-fetches; use --full to pin) =="; return; }
-  have npm || { say "!! npm missing — skipping npm globals"; return; }
-  say "== npm globals (deps/npm-global.txt) =="
-  # shellcheck disable=SC2046
-  run "npm install -g $(manifest npm-global.txt | tr '\n' ' ')"
-}
+# python3 (skills, render_table.py)
+have python3 || { say "python3 missing — installing"; pm_install python3 || pm_install python@3.12 || true; }
+have python3 && say "  ok    python3 ($(command -v python3))"
 
-case "$(uname -s)" in
-  Darwin) install_macos ;;
-  Linux)  install_linux ;;
-  *) say "unsupported OS: $(uname -s)"; exit 1 ;;
-esac
-install_pip
-install_npm_globals
+# matplotlib (table PNGs) via pip
+if have python3; then
+  say "pip: deps/requirements.txt"
+  run "python3 -m pip install --user -r '$REPO/deps/requirements.txt'"
+fi
+
+# npm globals — optional; npx --yes auto-fetches otherwise
+if [ "$NPM" = 1 ]; then
+  if have npm; then
+    say "npm globals: deps/npm-global.txt"
+    # shellcheck disable=SC2046
+    run "npm install -g $(manifest npm-global.txt | tr '\n' ' ')"
+  else say "!! npm missing — skipping npm globals"; fi
+else
+  say "npm globals: skipped (npx --yes auto-fetches; use --npm to pin)"
+fi
 
 say ""
-say "core deps done. Check herdr (not auto-installed):"
-have herdr && say "  herdr: $(command -v herdr)" || say "  herdr: MISSING — install from https://herdr.dev"
-say ""
-say "next: ./install.sh   # link dotfiles + register service"
+say "feature-extras done. CJK table fonts: macOS ships Hiragino; Linux needs fonts-noto-cjk."

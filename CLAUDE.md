@@ -16,12 +16,14 @@ Active set on any machine = `shared/` + `<uname>/`.
 ## Setting up / adapting to a new machine
 
 **When the user asks to set up, install, adapt, or bootstrap this on a machine:
-follow `SETUP.md` step by step.** Order: detect OS (`uname -s`) → `./bootstrap.sh`
-(installs deps from `deps/`; `DEPENDENCIES.md` is the functionality→deps authority)
-→ `./install.sh` (symlink + service) → OS-specific service + `herdr integration
-install claude` → seed per-user configs → verify. `bootstrap.sh` does NOT install
-herdr, the caveman plugin, MCP servers, or the melchior wrapper — those are manual
-(DEPENDENCIES.md §6).
+follow `SETUP.md` step by step.** Order: detect OS (`uname -s`) → `./install.sh`
+(installs the terminal stack — herdr/kitty/CLI — via `lib/deps.sh`, then symlinks
++ service) → `./bootstrap.sh` (optional Claude-feature extras: node/python/
+matplotlib) → OS-specific service + `herdr integration install claude` → seed
+per-user configs → verify. `DEPENDENCIES.md` is the functionality→deps authority.
+Do NOT edit the layer-1 build (`lib/deps.sh`, `packages/*.txt`, `install.sh`) on a
+machine you can't test it on — it's the shared cross-OS installer. `caveman`
+plugin, MCP servers, and the melchior wrapper are manual (DEPENDENCIES.md §6).
 
 ## How it works (quick facts)
 

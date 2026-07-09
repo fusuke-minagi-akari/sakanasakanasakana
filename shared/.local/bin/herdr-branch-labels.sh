@@ -29,11 +29,7 @@ MANAGED_DIR="${CACHE_DIR}/managed-panes"  # one flag file per pane we titled
 mkdir -p "$CACHE_DIR" "$MANAGED_DIR"
 
 now() { date +%s; }
-# portable md5: macOS `md5 -qs`, Linux `md5sum`
-hashkey() {
-  if command -v md5 >/dev/null 2>&1; then md5 -qs "$1"
-  else printf '%s' "$1" | md5sum | cut -d' ' -f1; fi
-}
+hashkey() { md5 -qs "$1"; }
 pane_key() { printf '%s' "${1//[^A-Za-z0-9]/_}"; }
 
 # Resolve the branch's PR number in $dir, write "<num-or-empty>\t<epoch>" to the

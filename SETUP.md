@@ -24,49 +24,49 @@ Translate package names accordingly; the apt names are the reference.
 
 ---
 
-## 1. Install dependencies
+## 1. Install dependencies + link (`./install.sh`)
 
-Run the bootstrap — it reads `deps/` and installs what's missing for the OS:
+`install.sh` does BOTH the terminal-stack deps and the symlinking in one run:
 
 ```sh
-./bootstrap.sh            # core deps (brew bundle | apt/dnf/pacman + pip)
-./bootstrap.sh --dry-run  # preview
-./bootstrap.sh --full     # + optional (npm globals, uv/go-task, kitty, xvfb…)
+cd <repo> && ./install.sh   # deps (herdr/kitty/CLI) + link + seed + launchd
+./install.sh --dry-run      # preview, change nothing
+./install.sh --no-deps      # link only, skip dependency install
 ```
 
-**`DEPENDENCIES.md` is the authority** on which functionality needs what (full
-matrix, per-OS package names, core vs optional). Consult it if a feature fails
-or you need to install selectively.
+**Layer 1 — terminal stack** (via `lib/deps.sh`, state-aware): detects the
+package manager (brew / apt / pacman via `/etc/os-release`), installs from
+`packages/{brew,apt,pacman}.txt` (glow chafa mpv jq gh git file), then ensures
+**herdr** (herdr.dev installer, brew fallback) and **kitty** (per-OS installer).
+Handles bare/half-built/corrupt/healthy per component. Do NOT edit `lib/deps.sh`
+or `packages/apt.txt`/`packages/pacman.txt` on a machine you can't test them on.
 
-Things `bootstrap.sh` does NOT install (do these by hand, confirm with user):
-- **`herdr`** — not in any package repo; install from https://herdr.dev (→ `~/.local/bin/herdr`).
-- **`caveman` plugin** — via Claude Code plugin marketplace (statusline/caveman mode).
-- **MCP servers** (Notion/Slack/Google) — via claude.ai auth; needed by nippo/standup/research/kalmia.
-- **`melchior-headless` wrapper** (`~/.local/share/melchior-headless/`) + BetterDisplay — separate artifacts.
+Then `install.sh` links `shared/` + `<os>/` into `$HOME` (existing files → `~/backup`),
+seeds `*.example` configs, and on macOS renders + loads the launchd job.
 
-On Debian/Ubuntu, `gh` and `glow` may need their own apt repos (GitHub CLI repo /
-Charm repo) — see `deps/packages-apt.txt` notes. Features degrade gracefully when
-an optional dep is missing (`show` skips only the affected file type, etc.).
+**Layer 2 — Claude-feature extras** (optional, additive — never touches layer 1):
+
+```sh
+./bootstrap.sh          # node, python3, matplotlib (for /diagram, report, table PNGs)
+./bootstrap.sh --npm    # also pin npm globals; else npx --yes auto-fetches them
+```
+
+**`DEPENDENCIES.md`** is the full functionality→dependency matrix (per-OS package
+names, core vs optional). Consult it if a feature fails or to install selectively.
+
+Still manual (confirm with user): **`caveman` plugin** (Claude Code marketplace),
+**MCP servers** (Notion/Slack/Google via claude.ai auth — nippo/standup/research/kalmia),
+**`melchior-headless` wrapper** (`~/.local/share/melchior-headless/`) + BetterDisplay.
+On Debian/Ubuntu `gh`/`glow` may need their own apt repos (see `packages/apt.txt`).
 
 ---
 
-## 2. Link the dotfiles
-
-```sh
-cd <repo> && ./install.sh
-```
-
-`install.sh` detects `uname`, links `shared/` + `<os>/` into `$HOME` (backing up
-existing files to `~/backup`), seeds `*.example` configs if missing, and — on
-macOS — renders + loads the launchd job. Use `--dry-run` first if unsure.
-
----
-
-## 3. Background daemon (branch labels)
+## 2. Background daemon (branch labels)
 
 The git-branch visualizer (`~/.local/bin/herdr-branch-labels.sh`) must run as a
-service. The script itself is cross-OS (md5 shim built in). The *service manager*
-differs:
+service. Note: `hashkey()` uses macOS `md5`; on a distro without `md5` it degrades
+to a shared cache key (labels still render) — swap to `md5sum` there if desired.
+The *service manager* differs:
 
 - **macOS** — `install.sh` already handled it (launchd job
   `dev.herdr.branchlabels`, rendered from `macos/…/*.plist.tmpl`). Verify:
@@ -103,7 +103,7 @@ differs:
 
 ---
 
-## 4. herdr-managed Claude hook
+## 3. herdr-managed Claude hook
 
 `~/.claude/hooks/herdr-agent-state.sh` is generated/overwritten by herdr and is
 **intentionally not tracked**. Recreate it:
@@ -115,7 +115,7 @@ now a symlink to the repo — that's fine).
 
 ---
 
-## 5. Fill per-user configs (seeded from `*.example`)
+## 4. Fill per-user configs (seeded from `*.example`)
 
 These hold secrets/PII, so only `.example` templates are committed. `install.sh`
 copied them to their real names if missing. Fill in real values (kept local,
@@ -127,7 +127,7 @@ gitignored — never commit them):
 
 ---
 
-## 6. Verify
+## 5. Verify
 
 ```sh
 # symlinks resolve into the repo
