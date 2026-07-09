@@ -1,0 +1,8 @@
+# macOS deps (Homebrew). One per line; # starts a comment.
+glow          # markdown renderer
+chafa         # image -> kitty graphics in `show`
+mpv           # video playback (--vo=kitty)
+jq            # JSON parsing in herdr-branch-labels.sh
+gh            # GitHub CLI — PR numbers in branch labels
+git           # branch detection
+# `file` ships with macOS. kitty is installed as a cask by os/macos.sh.
