@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# clip <path> [path...] — put file(s) on the X clipboard as a file object (uri-list),
+# so you can paste them into file managers, chat apps, email, etc. (X11 / xclip).
+set -euo pipefail
+
+if [ "$#" -eq 0 ]; then
+  echo "usage: clip <path> [path...]" >&2
+  exit 1
+fi
+
+command -v xclip >/dev/null || { echo "clip: xclip not found" >&2; exit 1; }
+
+# Percent-encode a path into a file:// URI (keep unreserved chars + '/').
+to_uri() {
+  local p="$1" out="" i c
+  for (( i=0; i<${#p}; i++ )); do
+    c="${p:i:1}"
+    case "$c" in
+      [A-Za-z0-9._~/-]) out+="$c" ;;
+      *) printf -v c '%%%02X' "'$c" ; out+="$c" ;;
+    esac
+  done
+  printf 'file://%s' "$out"
+}
+
+uris=""
+for f in "$@"; do
+  if [ ! -e "$f" ]; then
+    echo "clip: no such path: $f" >&2
+    exit 1
+  fi
+  abs="$(realpath -- "$f")"
+  uris+="$(to_uri "$abs")"$'\r\n'
+done
+
+printf '%s' "$uris" | xclip -selection clipboard -target text/uri-list -i
+
+n="$#"
+echo "clip: $n file$([ "$n" -ne 1 ] && echo s) on clipboard (paste as file)" >&2

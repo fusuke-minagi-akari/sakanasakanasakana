@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# show <path> — open a path the right way inside a kitty-graphics terminal (herdr panes).
+#   directory     -> xdg-open (GUI file manager)
+#   md            -> glow
+#   image (+gif)  -> kitten icat
+#   video         -> flatpak mpv, kitty graphics, keyboard controls (space/arrows/q)
+#   code / text   -> micro (in-pane editor, mouse + keyboard)
+set -euo pipefail
+
+f="${1:-}"
+if [ -z "$f" ]; then
+  echo "usage: show <path>" >&2
+  exit 1
+fi
+
+# Directory -> hand off to the desktop file manager.
+if [ -d "$f" ]; then
+  exec xdg-open "$f"
+fi
+if [ ! -e "$f" ]; then
+  echo "show: no such path: $f" >&2
+  exit 1
+fi
+if [ ! -f "$f" ]; then
+  echo "show: not a regular file or directory: $f" >&2
+  exit 1
+fi
+
+ext="${f##*.}"
+ext="${ext,,}"
+
+play_md()    { glow -- "$f"; }
+play_image() { kitten icat -- "$f"; }
+play_video() { flatpak run io.mpv.Mpv --vo=kitty -- "$f"; }
+play_code()  { micro -- "$f"; }
+
+case "$ext" in
+  md|markdown|mdown|mkd|mdwn)
+    play_md ;;
+  png|jpg|jpeg|gif|webp|bmp|tif|tiff|ico|avif|apng)
+    play_image ;;
+  mp4|mkv|webm|mov|avi|flv|m4v|wmv|mpg|mpeg|ogv|ts|3gp)
+    play_video ;;
+  py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|gleam|sol|asm|s|proto|graphql|gql)
+    play_code ;;
+  sh|bash|zsh|fish|ps1|bat|awk|sed|vim|el|lisp|scm)
+    play_code ;;
+  html|htm|css|scss|sass|less|xml|svg|yaml|yml|toml|ini|cfg|conf|json|json5|jsonc|env|properties|gradle|groovy|dockerfile|makefile|mk|cmake|tf|hcl)
+    play_code ;;
+  txt|text|log|csv|tsv|diff|patch)
+    play_code ;;
+  *)
+    mime="$(file -b --mime-type -- "$f" 2>/dev/null || echo unknown)"
+    case "$mime" in
+      *markdown*|text/markdown) play_md ;;
+      image/*)                  play_image ;;
+      video/*)                  play_video ;;
+      text/*|application/json|application/xml|*+xml|application/javascript|application/x-shellscript)
+                                play_code ;;
+      *)
+        echo "show: unsupported type: $mime ($f)" >&2
+        exit 1 ;;
+    esac ;;
+esac

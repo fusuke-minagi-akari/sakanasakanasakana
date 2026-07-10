@@ -1,0 +1,36 @@
+onboarding = false
+
+[ui.toast]
+delivery = "system"
+
+[ui]
+show_agent_labels_on_pane_borders = true
+agent_panel_sort = "priority"
+
+[experimental]
+kitty_graphics = true
+
+[keys]
+prefix = "alt+x"
+
+# panes: arrow keys
+focus_pane_left = "prefix+left"
+focus_pane_down = "prefix+down"
+focus_pane_up = "prefix+up"
+focus_pane_right = "prefix+right"
+
+# workspaces ("windows"): prev/next
+previous_workspace = "prefix+shift+up"
+next_workspace = "prefix+shift+down"
+
+# agents: walk priority order (panel sorted by priority)
+previous_agent = "prefix+k"
+next_agent = "prefix+j"
+# jump straight to agent N by priority rank
+focus_agent = "prefix+alt+1..9"
+
+# cheatsheet pane: Alt+x h opens the shortcut list; press q to close
+[[keys.command]]
+key = "prefix+h"
+type = "pane"
+command = "less -R ~/.config/herdr/cheatsheet.txt"
