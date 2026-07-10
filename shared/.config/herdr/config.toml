@@ -2,6 +2,9 @@
 # View all defaults: herdr --default-config
 # Reload after edit:  herdr server reload-config
 
+# Skip the first-run onboarding (matches the linux overlay).
+onboarding = false
+
 # --- Notifications: ping on Claude blocked (needs approval) / done ---
 [ui.toast]
 delivery = "system"      # macOS Notification Center

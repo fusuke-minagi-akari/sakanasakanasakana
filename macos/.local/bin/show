@@ -33,7 +33,7 @@ case "$ext" in
   png|jpg|jpeg|gif|webp|bmp|tif|tiff|ico|avif|apng|heic|heif|svg)    play_image ;;
   mp4|mkv|webm|mov|avi|flv|m4v|wmv|mpg|mpeg|ogv|ts|3gp)              play_video ;;
   mp3|wav|flac|aac|ogg|opus|m4a)                                    play_audio ;;
-  py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|sol|asm|s|proto|graphql|gql) play_code ;;
+  py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|gleam|sol|asm|s|proto|graphql|gql) play_code ;;
   sh|bash|zsh|fish|ps1|bat|awk|sed|vim|el|lisp|scm)                 play_code ;;
   html|htm|css|scss|sass|less|xml|yaml|yml|toml|ini|cfg|conf|json|json5|jsonc|env|properties|gradle|groovy|dockerfile|makefile|mk|cmake|tf|hcl) play_code ;;
   txt|text|log|csv|tsv|diff|patch)                                  play_code ;;
