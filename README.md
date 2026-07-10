@@ -36,7 +36,9 @@ sakanasakanasakana/
 │   └── .claude/              settings.json, CLAUDE.md, hooks/, commands/, skills/, scripts/
 ├── macos/              # Darwin 限定
 │   └── Library/LaunchAgents/ dev.herdr.branchlabels.plist.tmpl
-└── linux/              # Linux 限定（今後 systemd unit 等をここへ）
+└── linux/              # Linux 限定（herdr + Kitty 前提の上書き）
+    ├── .local/bin/           show（Kitty 版）, clip
+    └── .config/herdr/        config.toml（Linux キーバインド）
 ```
 
 `install.sh` は常に `shared/` を反映し、その上に `uname` で判定した `macos/` か `linux/` を重ねる。同一リポジトリで Mac と Linux 両方をまかなう。
@@ -46,9 +48,10 @@ sakanasakanasakana/
 **herdr / ターミナル**
 | パス | 役割 |
 |---|---|
-| `.local/bin/show` | `show <path>` — ファイルを herdr + Kitty 用 in-terminal ビューアへ自動振り分け（画像→`chafa -f kitty`、動画→`mpv --vo=kitty`、md→`glow`）。 |
+| `.local/bin/show` | `show <path>` — ファイル/フォルダを自動振り分け。**shared**（クロスOS）は 画像→`chafa -f kitty`、動画→`mpv --vo=kitty`、md→`glow`。**linux** 上書き版は herdr + Kitty 前提: フォルダ→`xdg-open`、画像→`kitten icat`、動画→flatpak `mpv --vo=kitty`、md→`glow`、コード/テキスト→`micro`（pane 内エディタ, マウス+キーボード）。 |
+| `linux/.local/bin/clip` | `clip <path>…` — ファイルを X クリップボードに **file object**（`xclip -target text/uri-list`）として載せ、ファイルマネージャ/チャット/メールへ添付貼り付け可能に。abs パスを `file://` URI に percent-encode。X11 前提。 |
 | `.local/bin/herdr-branch-labels.sh` | git ブランチ可視化デーモン。workspace サイドバー + 各 pane ボーダーに `<repo> · <branch> · <N>Δ · PR#<n>`。 |
-| `.config/herdr/config.toml` | herdr 本体設定（通知・サウンド・テーマ・キーバインド・kitty_graphics）。 |
+| `.config/herdr/config.toml` | herdr 本体設定（通知・サウンド・テーマ・キーバインド・kitty_graphics）。**linux** 上書きは `prefix=alt+x`・矢印 pane 移動・agent walk・cheatsheet pane。 |
 | `macos/…/dev.herdr.branchlabels.plist.tmpl` | 上記デーモンの launchd 常駐ジョブ。絶対パスが要るため symlink せず `$HOME` を埋めて生成。 |
 
 **Claude Code**
@@ -123,6 +126,8 @@ NDA・PII を含む値はコミット前に汎用プレースホルダへ置換�
 全機能→依存の完全なマトリクス（機能ごとに何が core / optional か、OS 別パッケージ名）は **[`DEPENDENCIES.md`](DEPENDENCIES.md)**。Layer 1 一覧は `packages/*.txt`（`install.sh` 経由）、Layer 2 extras は `deps/`（`bootstrap.sh` 経由）。
 
 ざっくり: `herdr`+`kitty`（`install.sh` が自動導入）+ `git jq gh perl file`（daemon）、`chafa mpv glow`（show）、`node`+`npx`（diagram/kalmia/report）、`python3`+`matplotlib`+CJK フォント（表 PNG）。daemon の `hashkey` は macOS `md5` 前提（`md5` 無い distro では共有キーに劣化、ラベル自体は表示）。OS 差はサービス管理（macOS=launchd 自動 / Linux=systemd user unit、`SETUP.md` §2）。caveman プラグイン・MCP サーバ・melchior wrapper は手動（`DEPENDENCIES.md` §6）。
+
+OS 別 `show`/`clip` の追加ツール: **Linux** = `kitten`(Kitty)・flatpak `io.mpv.Mpv`・`micro`・`xdg-open`・`xclip`・`realpath`。**macOS** = `chafa`(icat は herdr PTY 越しで不可)・`mpv`・`glow`・`${EDITOR}`/`micro`・`open`・`pbcopy`/`osascript`。
 
 ## 追跡しないもの / Not tracked
 
