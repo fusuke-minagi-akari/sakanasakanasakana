@@ -12,17 +12,19 @@ fi
 # Absolute path without needing GNU realpath (may be absent on macOS).
 abspath() { cd "$(dirname -- "$1")" && printf '%s/%s' "$(pwd)" "$(basename -- "$1")"; }
 
-items=""
-for f in "$@"; do
-  [ -e "$f" ] || { echo "clip: no such path: $f" >&2; exit 1; }
-  abs="$(abspath "$f")"
-  esc=${abs//\\/\\\\}; esc=${esc//\"/\\\"}      # escape for AppleScript string
-  items+="POSIX file \"$esc\", "
-done
-items="${items%, }"
+esc_of() { local p; p="$(abspath "$1")"; p=${p//\\/\\\\}; printf '%s' "${p//\"/\\\"}"; }
 
-# A list of one paste-able file works; a list of many is best-effort.
-osascript -e "set the clipboard to {$items}"
+for f in "$@"; do [ -e "$f" ] || { echo "clip: no such path: $f" >&2; exit 1; }; done
+
+if [ "$#" -eq 1 ]; then
+  # single file → a real file reference («class furl»), pastes as a file in Finder/Mail/chat
+  osascript -e "set the clipboard to POSIX file \"$(esc_of "$1")\""
+else
+  # multiple → list of file references (best-effort; some targets accept only one)
+  items=""
+  for f in "$@"; do items+="POSIX file \"$(esc_of "$f")\", "; done
+  osascript -e "set the clipboard to {${items%, }}"
+fi
 
 n="$#"
 echo "clip: $n file$([ "$n" -ne 1 ] && echo s) on clipboard (paste as file)" >&2
