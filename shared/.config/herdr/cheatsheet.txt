@@ -1,0 +1,23 @@
+  herdr keybinds — prefix = Alt+x   (press prefix, then the key)
+  ─────────────────────────────────────────────────────────────
+  PANES
+    prefix ←/↓/↑/→        focus pane in that direction
+
+  WORKSPACES ("windows")
+    prefix Shift+↑         previous workspace
+    prefix Shift+↓         next workspace
+
+  AGENTS  (panel sorted by priority)
+    prefix k               previous agent
+    prefix j               next agent
+    prefix Alt+1..9        jump to agent N by priority rank
+
+  COMMANDS
+    prefix Alt+c           new Claude Code pane
+    prefix h               this cheatsheet  (q to close)
+
+  TOOLS (in a pane)
+    show <path>            view file/dir (image/video/md/code/folder)
+    clip <path>...         put file(s) on the clipboard as file objects
+
+  Reload after editing config.toml:  herdr server reload-config

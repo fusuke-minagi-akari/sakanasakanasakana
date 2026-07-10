@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# clip <path> [path...] — put file(s) on the macOS clipboard as file objects,
+# so you can paste them into Finder, Mail, chat apps, etc. (osascript).
+# macOS counterpart of linux/.local/bin/clip (which uses xclip on X11).
+set -euo pipefail
+
+if [ "$#" -eq 0 ]; then
+  echo "usage: clip <path> [path...]" >&2
+  exit 1
+fi
+
+# Absolute path without needing GNU realpath (may be absent on macOS).
+abspath() { cd "$(dirname -- "$1")" && printf '%s/%s' "$(pwd)" "$(basename -- "$1")"; }
+
+items=""
+for f in "$@"; do
+  [ -e "$f" ] || { echo "clip: no such path: $f" >&2; exit 1; }
+  abs="$(abspath "$f")"
+  esc=${abs//\\/\\\\}; esc=${esc//\"/\\\"}      # escape for AppleScript string
+  items+="POSIX file \"$esc\", "
+done
+items="${items%, }"
+
+# A list of one paste-able file works; a list of many is best-effort.
+osascript -e "set the clipboard to {$items}"
+
+n="$#"
+echo "clip: $n file$([ "$n" -ne 1 ] && echo s) on clipboard (paste as file)" >&2

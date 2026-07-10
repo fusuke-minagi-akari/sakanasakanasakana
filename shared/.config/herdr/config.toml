@@ -22,12 +22,36 @@ claude = "on"
 [session]
 resume_agents_on_restore = true
 
-# --- Hotkey: spawn a Claude pane. prefix = ctrl+b by default ---
+# --- Keybinds (mirrors the linux overlay for cross-device muscle memory) ---
+[keys]
+prefix = "alt+x"
+# panes: arrow keys
+focus_pane_left = "prefix+left"
+focus_pane_down = "prefix+down"
+focus_pane_up = "prefix+up"
+focus_pane_right = "prefix+right"
+# workspaces ("windows"): prev/next
+previous_workspace = "prefix+shift+up"
+next_workspace = "prefix+shift+down"
+# agents: walk priority order (panel sorted by priority)
+previous_agent = "prefix+k"
+next_agent = "prefix+j"
+# jump straight to agent N by priority rank
+focus_agent = "prefix+alt+1..9"
+
+# spawn a Claude pane
 [[keys.command]]
 key = "prefix+alt+c"
 type = "pane"
 command = "claude"
 description = "new Claude Code pane"
+
+# cheatsheet pane: prefix h opens the shortcut list; press q to close
+[[keys.command]]
+key = "prefix+h"
+type = "pane"
+command = "less -R ~/.config/herdr/cheatsheet.txt"
+description = "keybind cheatsheet"
 
 [ui]
 agent_panel_sort = "priority"

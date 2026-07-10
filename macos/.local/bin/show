@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# show <path> — open a path the right way inside a kitty-graphics terminal (herdr panes), macOS.
+#   directory     -> open            (Finder)
+#   md            -> glow
+#   image (+gif)  -> chafa -f kitty  (NOT `kitten icat`: handshake fails through herdr's PTY on macOS)
+#   video         -> mpv --vo=kitty  (keyboard: space/arrows/q)
+#   audio         -> mpv --no-video
+#   code / text   -> $EDITOR (micro if set/installed, else less) in-pane
+# macOS counterpart of linux/.local/bin/show; same behaviour, macOS tools.
+set -euo pipefail
+
+f="${1:-}"
+if [ -z "$f" ]; then echo "usage: show <path>" >&2; exit 1; fi
+case "$f" in -h|--help) echo "usage: show <path>"; exit 0 ;; esac
+
+# Directory -> hand off to Finder.
+if [ -d "$f" ]; then exec open "$f"; fi
+if [ ! -e "$f" ]; then echo "show: no such path: $f" >&2; exit 1; fi
+if [ ! -f "$f" ]; then echo "show: not a regular file or directory: $f" >&2; exit 1; fi
+
+need() { command -v "$1" >/dev/null 2>&1 || { echo "show: missing '$1' — brew install $2" >&2; exit 127; }; }
+
+ext="${f##*.}"; ext="${ext,,}"
+
+play_md()    { need glow glow; exec glow -- "$f"; }
+play_image() { need chafa chafa; exec chafa -f kitty -- "$f"; }              # icat fails via herdr PTY
+play_video() { need mpv mpv; exec mpv --vo=kitty --hr-seek=no --profile=sw-fast -- "$f"; }
+play_audio() { need mpv mpv; exec mpv --no-video -- "$f"; }
+play_code()  { exec "${EDITOR:-$(command -v micro || echo less)}" "$f"; }
+
+case "$ext" in
+  md|markdown|mdown|mkd|mdwn)                                        play_md ;;
+  png|jpg|jpeg|gif|webp|bmp|tif|tiff|ico|avif|apng|heic|heif|svg)    play_image ;;
+  mp4|mkv|webm|mov|avi|flv|m4v|wmv|mpg|mpeg|ogv|ts|3gp)              play_video ;;
+  mp3|wav|flac|aac|ogg|opus|m4a)                                    play_audio ;;
+  py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|sol|asm|s|proto|graphql|gql) play_code ;;
+  sh|bash|zsh|fish|ps1|bat|awk|sed|vim|el|lisp|scm)                 play_code ;;
+  html|htm|css|scss|sass|less|xml|yaml|yml|toml|ini|cfg|conf|json|json5|jsonc|env|properties|gradle|groovy|dockerfile|makefile|mk|cmake|tf|hcl) play_code ;;
+  txt|text|log|csv|tsv|diff|patch)                                  play_code ;;
+  *)
+    mime="$(file -b --mime-type -- "$f" 2>/dev/null || echo unknown)"
+    case "$mime" in
+      *markdown*|text/markdown) play_md ;;
+      image/*)                  play_image ;;
+      video/*)                  play_video ;;
+      audio/*)                  play_audio ;;
+      text/*|application/json|application/xml|*+xml|application/javascript|application/x-shellscript) play_code ;;
+      *) echo "show: unsupported type: $mime ($f)" >&2; exit 1 ;;
+    esac ;;
+esac
