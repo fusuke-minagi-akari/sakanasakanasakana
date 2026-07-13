@@ -1,7 +1,4 @@
 {
-  "enabledPlugins": {
-    "caveman@caveman": true
-  },
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
     "OTEL_EXPORTER_OTLP_ENDPOINT": "https://d25nyrwm2wqzzf.cloudfront.net",
@@ -10,52 +7,7 @@
     "OTEL_METRICS_EXPORTER": "otlp",
     "OTEL_RESOURCE_ATTRIBUTES": "user.email=fusuke.minagi@akariinc.co.jp"
   },
-  "extraKnownMarketplaces": {
-    "akari-awesome-cc-plugins": {
-      "source": {
-        "source": "git",
-        "url": "https://github.com/AKARI-Inc/awesome-cc.git"
-      }
-    },
-    "caveman": {
-      "source": {
-        "repo": "JuliusBrussee/caveman",
-        "source": "github"
-      }
-    }
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "python3 ~/.claude/skills/token-usage/session_export.py > /tmp/session_export.log 2>&1",
-            "type": "command"
-          },
-          {
-            "command": "bash \"$HOME/.claude/hooks/herdr-claude-done.sh\"",
-            "timeout": 10,
-            "type": "command"
-          }
-        ]
-      }
-    ]
-  },
-  "language": "english, japanese as secondary",
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "deny": [
       "Bash(rm :*)",
       "Bash(rm -rf:*)",
@@ -134,15 +86,63 @@
       "Bash(pip install*)",
       "Bash(brew install*)",
       "Bash(sudo*)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/skills/token-usage/session_export.py > /tmp/session_export.log 2>&1"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/herdr-claude-done.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
-  "skipAutoPermissionPrompt": true,
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$HOME/.claude/plugins/cache/caveman/caveman/63e797cd753b/hooks/caveman-statusline.sh\""
+  },
+  "enabledPlugins": {
+    "caveman@caveman": true
+  },
+  "extraKnownMarketplaces": {
+    "akari-awesome-cc-plugins": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/AKARI-Inc/awesome-cc.git"
+      }
+    },
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
+  "language": "english, japanese as secondary",
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
-  "statusLine": {
-    "command": "bash \"$HOME/.claude/plugins/cache/caveman/caveman/63e797cd753b/hooks/caveman-statusline.sh\"",
-    "type": "command"
-  },
   "theme": "dark-ansi",
-  "tui": "fullscreen"
+  "skipAutoPermissionPrompt": true
 }

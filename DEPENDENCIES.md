@@ -28,11 +28,31 @@ optional · 🍎 macOS-builtin · 🐧 Linux-only.
 | `mpv` | video / audio | core (av) | `mpv` | `mpv` |
 | `glow` | markdown render | opt (md only) | `glow` | `glow` ¹ |
 | `file` | mime sniff for unknown ext | core | 🍎 builtin | `file` |
-| `less` | text fallback (`$PAGER`) | core | 🍎 builtin | builtin |
+| `less` | pager for diff/table/json | core | 🍎 builtin | builtin |
 | **Kitty.app** | outer terminal for inline image/video (herdr `kitty_graphics`) | opt ² | cask `kitty` | 🐧 `kitty` |
+| `poppler` (`pdftoppm`) | **PDF** → all pages | opt ³ | `poppler` | `poppler-utils` |
+| `delta` / `bat` | **diff/patch** colorizer | opt ⁴ | `git-delta` / `bat` | `git-delta` / `bat` |
+| `csvkit` (`csvlook`) | **CSV** pretty table | opt ⁵ | `csvkit` (pip) | `csvkit` (pip) |
+| `jq` | **JSON** colorized | opt ⁶ | `jq` | `jq` |
 
 ¹ `glow` may need the Charm apt repo / snap / `go install`. ² Without a
 kitty-graphics terminal, `show` still runs but images/video won't render inline.
+³ PDF fallback order: `pdftoppm` (all pages) → macOS `qlmanage` (1st page) →
+`sips`. Install `poppler` for reliable multi-page. ⁴ diff falls back to a built-in
+`awk` colorizer if neither `delta` nor `bat` is present. ⁵ CSV falls back to a
+built-in `python3` aligner. ⁶ JSON falls back to `python3 -m json.tool`.
+So `show` for pdf/diff/csv/json **works with zero extra installs**; the named
+tools just make it nicer.
+
+## 1b. `notify` — long-command completion ping
+
+| Dep | Role | core/opt | macOS | Linux |
+|---|---|---|---|---|
+| `herdr` | fires the notification | core | (herdr.dev) | (herdr.dev) |
+
+`notify <cmd…>` runs the command, then `herdr notification show`s ✓/✗ + elapsed +
+exit code. No-op notification if herdr absent (command still runs). Cross-OS
+(`shared/`).
 
 ## 2. git branch-labels daemon (`herdr-branch-labels.sh`)
 

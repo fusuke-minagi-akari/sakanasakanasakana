@@ -7,7 +7,9 @@ Personal dotfiles for [herdr](https://herdr.dev) + Claude Code. `install.sh` sym
 
 ## これは何をするか / What it does
 
-- **`show <path>`** — ファイルを herdr + Kitty 用の in-terminal ビューアへ自動振り分け（画像→`chafa`、動画/音声→`mpv`、markdown→`glow`、他→pager）。
+- **`show <path>`** — ファイル/フォルダを herdr + Kitty 用ビューアへ自動振り分け。画像→`chafa`、動画/音声→`mpv`、markdown→`glow`、**PDF→ページ画像**、**diff→色付き**、**CSV→整列表**、**JSON→`jq`**、コード→エディタ、フォルダ→`open`。追加ツール無しでも動く（poppler/delta/csvkit があればより綺麗）。※新タイプ(pdf/diff/csv/json)は現状 macOS 版のみ、Linux 版は未移植。
+- **`notify <cmd…>`** — コマンド実行 → 完了時に herdr 通知（所要時間 + 終了コード、成功/失敗で音変化）。長時間タスク向け。cross-OS。
+- **`clip <path…>`** — ファイルをクリップボードへ file object として載せる（macOS=osascript / Linux=xclip）。
 - **git ブランチ可視化デーモン** — herdr の workspace サイドバー + 各 pane ボーダーに `<repo> · <branch> · <N>Δ · PR#<n>` を表示。macOS は launchd、Linux は systemd で常駐。
 - **herdr 本体設定** — 通知・サウンド・テーマ・キーバインド・kitty_graphics を再現。
 - **Claude Code 設定** — settings.json / CLAUDE.md / hooks / commands / skills / scripts をバージョン管理。

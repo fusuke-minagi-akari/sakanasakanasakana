@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# notify <command> [args...] — run a command, then fire a herdr notification on
+# completion with elapsed time + exit code. Prints a summary line too.
+# Cross-OS: uses `herdr notification show` (no-op if herdr not on PATH).
+#   notify make build          # ping when the build finishes
+#   notify pytest -q           # ping (red) if tests fail
+set -uo pipefail
+
+if [ "$#" -lt 1 ]; then echo "usage: notify <command> [args...]" >&2; exit 2; fi
+
+start=$SECONDS
+"$@"
+rc=$?
+dur=$(( SECONDS - start ))
+
+cmd="$*"; [ "${#cmd}" -gt 60 ] && cmd="${cmd:0:57}..."
+if [ "$rc" -eq 0 ]; then title="✓ done in ${dur}s"; sound=done
+else                    title="✗ failed (rc=$rc) in ${dur}s"; sound=request; fi
+
+if command -v herdr >/dev/null 2>&1; then
+  herdr notification show "$title" --body "$cmd" --position bottom-right --sound "$sound" >/dev/null 2>&1 || true
+fi
+printf '%s — %s\n' "$title" "$cmd" >&2
+exit "$rc"

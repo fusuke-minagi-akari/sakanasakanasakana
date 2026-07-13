@@ -28,23 +28,87 @@ play_video() { need mpv mpv; exec mpv --vo=kitty --hr-seek=no --profile=sw-fast 
 play_audio() { need mpv mpv; exec mpv --no-video -- "$f"; }
 play_code()  { exec "${EDITOR:-$(command -v micro || echo less)}" "$f"; }
 
+# PDF -> render page(s) to PNG -> chafa. pdftoppm = all pages (best; brew install
+# poppler); else qlmanage (macOS QuickLook, first page); else sips (last resort).
+play_pdf() {
+  need chafa chafa
+  local d; d="$(mktemp -d)"; trap 'rm -rf "$d"' EXIT
+  if command -v pdftoppm >/dev/null 2>&1; then
+    pdftoppm -png -r 120 -- "$f" "$d/p" || { echo "show: pdftoppm failed" >&2; exit 1; }
+  elif command -v qlmanage >/dev/null 2>&1 && qlmanage -t -s 1600 -o "$d" -- "$f" >/dev/null 2>&1 && ls "$d"/*.png >/dev/null 2>&1; then
+    :   # QuickLook rendered first page (install poppler for all pages)
+  elif command -v sips >/dev/null 2>&1 && sips -s format png -- "$f" --out "$d/p.png" >/dev/null 2>&1; then
+    :
+  else echo "show: can't rasterize PDF — brew install poppler" >&2; exit 1; fi
+  local n=0 img
+  for img in "$d"/*.png; do
+    [ -e "$img" ] || continue; n=$((n+1))
+    [ "$n" -gt 1 ] && printf '\n─── page %d ───\n' "$n"
+    chafa -f kitty -- "$img"
+  done
+  [ "$n" -eq 0 ] && { echo "show: no pages rendered — brew install poppler" >&2; exit 1; }
+}
+
+# unified diff -> delta > bat > awk colorizer + pager
+play_diff() {
+  if   command -v delta >/dev/null 2>&1; then delta < "$f"
+  elif command -v bat   >/dev/null 2>&1; then bat --language=diff --style=plain -- "$f"
+  else awk '
+      /^\+/ {printf "\033[32m%s\033[0m\n",$0; next}
+      /^-/  {printf "\033[31m%s\033[0m\n",$0; next}
+      /^@@/ {printf "\033[36m%s\033[0m\n",$0; next}
+      {print}' "$f" | less -R
+  fi
+}
+
+# CSV/TSV -> aligned table (csvlook > python) with horizontal-scroll pager
+play_table() {
+  local delim=','; case "$f" in *.tsv|*.tab) delim=$'\t' ;; esac
+  if command -v csvlook >/dev/null 2>&1 && [ "$delim" = ',' ]; then
+    csvlook -- "$f" | less -RS; return
+  fi
+  DELIM="$delim" python3 - "$f" <<'PY' | less -RS
+import csv, os, sys
+d = os.environ.get("DELIM", ",")
+rows = list(csv.reader(open(sys.argv[1], newline=""), delimiter=d))
+if not rows: sys.exit(0)
+ncol = max(len(r) for r in rows)
+w = [max((len(r[i]) if i < len(r) else 0) for r in rows) for i in range(ncol)]
+for r in rows:
+    print("  ".join((r[i] if i < len(r) else "").ljust(w[i]) for i in range(ncol)).rstrip())
+PY
+}
+
+# JSON -> jq colorized > python json.tool
+play_json() {
+  if command -v jq >/dev/null 2>&1; then jq -C . "$f" | less -R
+  else python3 -m json.tool "$f" | less -R; fi
+}
+
 case "$ext" in
   md|markdown|mdown|mkd|mdwn)                                        play_md ;;
   png|jpg|jpeg|gif|webp|bmp|tif|tiff|ico|avif|apng|heic|heif|svg)    play_image ;;
   mp4|mkv|webm|mov|avi|flv|m4v|wmv|mpg|mpeg|ogv|ts|3gp)              play_video ;;
   mp3|wav|flac|aac|ogg|opus|m4a)                                    play_audio ;;
+  pdf)                                                              play_pdf ;;
+  diff|patch)                                                       play_diff ;;
+  csv|tsv|tab)                                                      play_table ;;
+  json)                                                             play_json ;;
   py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|gleam|sol|asm|s|proto|graphql|gql) play_code ;;
   sh|bash|zsh|fish|ps1|bat|awk|sed|vim|el|lisp|scm)                 play_code ;;
-  html|htm|css|scss|sass|less|xml|yaml|yml|toml|ini|cfg|conf|json|json5|jsonc|env|properties|gradle|groovy|dockerfile|makefile|mk|cmake|tf|hcl) play_code ;;
-  txt|text|log|csv|tsv|diff|patch)                                  play_code ;;
+  html|htm|css|scss|sass|less|xml|yaml|yml|toml|ini|cfg|conf|json5|jsonc|env|properties|gradle|groovy|dockerfile|makefile|mk|cmake|tf|hcl) play_code ;;
+  txt|text|log)                                                     play_code ;;
   *)
     mime="$(file -b --mime-type -- "$f" 2>/dev/null || echo unknown)"
     case "$mime" in
       *markdown*|text/markdown) play_md ;;
+      application/pdf)          play_pdf ;;
       image/*)                  play_image ;;
       video/*)                  play_video ;;
       audio/*)                  play_audio ;;
-      text/*|application/json|application/xml|*+xml|application/javascript|application/x-shellscript) play_code ;;
+      application/json)         play_json ;;
+      text/csv|text/tab-separated-values) play_table ;;
+      text/*|application/xml|*+xml|application/javascript|application/x-shellscript) play_code ;;
       *) echo "show: unsupported type: $mime ($f)" >&2; exit 1 ;;
     esac ;;
 esac
