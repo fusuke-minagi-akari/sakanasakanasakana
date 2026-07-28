@@ -10,6 +10,7 @@ agent_panel_sort = "priority"
 [experimental]
 kitty_graphics = true
 
+pane_history = true
 [keys]
 prefix = "alt+x"
 
@@ -34,3 +35,7 @@ focus_agent = "prefix+alt+1..9"
 key = "prefix+h"
 type = "pane"
 command = "less -R ~/.config/herdr/cheatsheet.txt"
+
+[theme]
+name = "terminal"
+auto_switch = false
