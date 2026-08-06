@@ -1,6 +1,7 @@
 {
   "enabledPlugins": {
-    "caveman@caveman": true
+    "caveman@caveman": false,
+    "ponytail@ponytail": true
   },
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1",

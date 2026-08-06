@@ -23,11 +23,10 @@ def load(path):
     except Exception:
         return {}
 
-# settings.local.json is the machine-local override (gitignored) — settings.json
-# is a symlink into the shared dotfiles repo, so the per-device plugin choice
-# lives in local and must win here too.
+# settings.json only. Claude Code does NOT honor enabledPlugins from a user-level
+# settings.local.json (verified via `claude plugin list`), so reading local here
+# would make the badge claim a plugin that never actually loaded.
 enabled = load(os.path.join(claude_dir, "settings.json")).get("enabledPlugins", {})
-enabled.update(load(os.path.join(claude_dir, "settings.local.json")).get("enabledPlugins", {}))
 installed = load(os.path.join(claude_dir, "plugins", "installed_plugins.json")).get("plugins", {})
 
 for key, script in (("ponytail@ponytail", "hooks/ponytail-statusline.sh"),
