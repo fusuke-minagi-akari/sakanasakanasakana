@@ -11,6 +11,7 @@ Personal dotfiles for [herdr](https://herdr.dev) + Claude Code. `install.sh` sym
 - **`notify <cmd…>`** — コマンド実行 → 完了時に herdr 通知（所要時間 + 終了コード、成功/失敗で音変化）。長時間タスク向け。cross-OS。
 - **`clip <path…>`** — ファイルをクリップボードへ file object として載せる（macOS=osascript / Linux=xclip）。
 - **git ブランチ可視化デーモン** — herdr の workspace サイドバー + 各 pane ボーダーに `<repo> · <branch> · <N>Δ · PR#<n>` を表示。macOS は launchd、Linux は systemd で常駐。
+- **Claude ステータス監視** — <https://status.claude.com>（Statuspage、認証不要）を 60 秒毎に polling し、Claude Code の statusline に色付きドットを表示（緑=正常 / 黄=`● Code degraded` / 赤=`● API/Code outage` / 青=maintenance / 灰=stale）。状態が**変化した時のみ** herdr 通知 + デスクトップ通知（macOS=osascript / Linux=notify-send）。statusline 側はキャッシュ読みだけで通信しない。障害を待たずに全状態を試せる `test.sh`（fixture 生成・ネット不要、`pin` で実 statusline を任意状態に固定）付き。macOS=launchd `dev.claude.statuspoll` / Linux=systemd `claude-status.timer`。
 - **herdr 本体設定** — 通知・サウンド・テーマ・キーバインド・kitty_graphics を再現。
 - **Claude Code 設定** — settings.json / CLAUDE.md / hooks / commands / skills / scripts をバージョン管理。
 - **1 コマンドで新マシンへ展開** — `install.sh` が symlink を張り（既存は `~/backup` へ退避）、OS 別サービスを登録。依存や launchd/systemd の差は Claude Code が `SETUP.md` を読んで吸収する。
@@ -104,7 +105,7 @@ Claude Code は root の `CLAUDE.md` を自動で読み、`SETUP.md` の手順�
 
 - 既存の実ファイルは `~/backup/<相対パス>` に退避してから symlink へ置換（破壊なし）。
 - リポジトリ内を編集すれば即反映（`config.toml` 編集後 `herdr server reload-config`／スクリプト編集後 `launchctl kickstart -k gui/$UID/dev.herdr.branchlabels`、Linux は `systemctl --user restart herdr-branch-labels`）。
-- Linux はサービス登録が手動（systemd user unit）。`SETUP.md` §2 にそのまま貼れる unit あり。
+- Linux: `linux/.config/systemd/user/` に同梱した unit（`claude-status.timer`）は `install.sh` が `daemon-reload` + `enable --now` まで自動実行。branch-labels の unit は未同梱 — `SETUP.md` §2 にそのまま貼れる unit あり。
 
 詳細な OS 別手順書は **[`SETUP.md`](SETUP.md)**。
 

@@ -140,7 +140,7 @@
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
   "statusLine": {
-    "command": "bash \"$HOME/.claude/plugins/cache/caveman/caveman/0d95a81d35a9/src/hooks/caveman-statusline.sh\"",
+    "command": "bash \"$HOME/.claude/scripts/claude-status/statusline.sh\"",
     "type": "command"
   },
   "theme": "dark-ansi",

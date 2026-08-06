@@ -103,6 +103,41 @@ The *service manager* differs:
 
 ---
 
+## 2b. Background service (Claude status poller)
+
+`~/.claude/scripts/claude-status/poll.sh` polls <https://status.claude.com>
+(Statuspage, no auth) every 60s, caches a colored dot for the Claude Code
+statusline, and fires a herdr + desktop notification when the status *changes*.
+Both service units ship in the repo, so `install.sh` wires them automatically:
+
+- **macOS** — launchd job `dev.claude.statuspoll`, rendered from
+  `macos/Library/LaunchAgents/dev.claude.statuspoll.plist.tmpl`.
+  ```sh
+  launchctl print gui/$UID/dev.claude.statuspoll | grep -E 'state|runs'
+  ```
+- **Linux** — systemd user timer `claude-status.timer` (unit + timer live in
+  `linux/.config/systemd/user/`, symlinked by `install.sh`, then enabled).
+  ```sh
+  systemctl --user status claude-status.timer
+  loginctl enable-linger "$USER"   # keep polling after logout
+  notify-send --version            # desktop popups need libnotify (herdr popups don't)
+  ```
+
+The statusline itself is `statusline.sh` (caveman badge + status dot), wired via
+`statusLine.command` in `~/.claude/settings.json`. Never point that at the
+caveman plugin file directly — the plugin cache is overwritten on update.
+
+Test without waiting for a real outage — fixtures are built locally, no network:
+```sh
+~/.claude/scripts/claude-status/test.sh render      # every scenario -> segment
+~/.claude/scripts/claude-status/test.sh notify      # fire real notifications
+~/.claude/scripts/claude-status/test.sh pin major   # freeze the LIVE statusline
+~/.claude/scripts/claude-status/test.sh state       # pin / cache age / service
+~/.claude/scripts/claude-status/test.sh unpin
+```
+
+---
+
 ## 3. herdr-managed Claude hook
 
 `~/.claude/hooks/herdr-agent-state.sh` is generated/overwritten by herdr and is
@@ -138,6 +173,8 @@ show --help
 # daemon alive
 #   macOS: launchctl print gui/$UID/dev.herdr.branchlabels | grep state
 #   Linux: systemctl --user status herdr-branch-labels.service
+# claude status poller + statusline
+~/.claude/scripts/claude-status/test.sh state
 ```
 
 Report: OS detected, deps installed vs already-present, daemon state, and any

@@ -69,6 +69,19 @@ exit code. No-op notification if herdr absent (command still runs). Cross-OS
 ³ **herdr** is not in any package repo — install from https://herdr.dev
 (typically `~/.local/bin/herdr`). ⁴ `gh` on Debian/Ubuntu needs the GitHub apt repo.
 
+## 2b. Claude status poller + statusline (`claude-status/`)
+
+| Dep | Role | core/opt | macOS | Linux |
+|---|---|---|---|---|
+| `curl` | fetch status.claude.com Statuspage JSON (no auth) | core | 🍎 builtin | `curl` |
+| `jq` | parse indicator / components / incidents | core | `jq` | `jq` |
+| service mgr | poll every 60s | core | 🍎 launchd `dev.claude.statuspoll` (auto) | 🐧 systemd `--user` `claude-status.timer` (auto) |
+| `herdr` | in-terminal popup on status change | opt | herdr.dev ³ | herdr.dev ³ |
+| `osascript` / `notify-send` | desktop popup on status change | opt | 🍎 builtin | `libnotify-bin` / `libnotify` |
+
+Statusline dot is cache-only (never hits the network inline); the poller writes
+the cache. `test.sh` fakes any outage state offline — see SETUP.md §2b.
+
 ## 3. herdr itself + config / done-hook
 
 | Dep | Role | Install |

@@ -8,3 +8,4 @@ gh            # GitHub CLI — PR numbers in branch labels
 git           # branch detection
 file          # MIME fallback in `show`
 # kitty is installed separately (official installer) — apt build too old.
+libnotify-bin # notify-send — desktop popups from the claude-status poller (optional)

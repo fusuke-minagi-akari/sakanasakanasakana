@@ -106,11 +106,13 @@ for layer in "${LAYERS[@]}"; do
   done < <(find "$base" -type f | sort)
 done
 
-# --- render launchd plist(s) on macOS ---
+# --- render + (re)load every launchd plist on macOS ---
 if [ "$OS" = macos ]; then
-  TMPL="$REPO/macos/Library/LaunchAgents/dev.herdr.branchlabels.plist.tmpl"
-  PLIST="$HOME/Library/LaunchAgents/dev.herdr.branchlabels.plist"
-  if [ -f "$TMPL" ]; then
+  for TMPL in "$REPO"/macos/Library/LaunchAgents/*.plist.tmpl; do
+    [ -f "$TMPL" ] || continue
+    NAME="$(basename "$TMPL" .tmpl)"          # dev.foo.bar.plist
+    LABEL="${NAME%.plist}"                    # dev.foo.bar
+    PLIST="$HOME/Library/LaunchAgents/$NAME"
     say "dotfiles: rendering $PLIST"
     if [ "$DRY" = 1 ]; then
       say "  [dry] sed 's|__HOME__|$HOME|g' '$TMPL' > '$PLIST'"
@@ -120,11 +122,26 @@ if [ "$OS" = macos ]; then
       say "  wrote $PLIST"
     fi
     if [ "$LOAD" = 1 ] && [ "$DRY" = 0 ] && command -v launchctl >/dev/null 2>&1; then
-      launchctl bootout   "gui/$UID/dev.herdr.branchlabels" 2>/dev/null || true
-      launchctl bootstrap "gui/$UID" "$PLIST"               2>/dev/null || true
-      launchctl kickstart -k "gui/$UID/dev.herdr.branchlabels" 2>/dev/null || true
-      say "  launchd: (re)started dev.herdr.branchlabels"
+      launchctl bootout   "gui/$UID/$LABEL"    2>/dev/null || true
+      launchctl bootstrap "gui/$UID" "$PLIST"  2>/dev/null || true
+      launchctl kickstart -k "gui/$UID/$LABEL" 2>/dev/null || true
+      say "  launchd: (re)started $LABEL"
     fi
+  done
+fi
+
+# --- enable systemd --user timers on Linux (units were symlinked above) ---
+if [ "$OS" = linux ] && [ -d "$REPO/linux/.config/systemd/user" ]; then
+  if [ "$LOAD" = 1 ] && [ "$DRY" = 0 ] && command -v systemctl >/dev/null 2>&1; then
+    systemctl --user daemon-reload 2>/dev/null || true
+    for U in "$REPO"/linux/.config/systemd/user/*.timer; do
+      [ -f "$U" ] || continue
+      T="$(basename "$U")"
+      systemctl --user enable --now "$T" 2>/dev/null && say "  systemd: enabled $T" \
+        || say "  systemd: could not enable $T (no user session? run: systemctl --user enable --now $T)"
+    done
+  else
+    say "systemd: skipped (--no-load/--dry-run or systemctl missing)"
   fi
 fi
 

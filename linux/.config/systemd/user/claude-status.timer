@@ -1,0 +1,12 @@
+[Unit]
+Description=Poll status.claude.com every 60s (Claude Code statusline)
+
+[Timer]
+OnBootSec=30
+OnStartupSec=15
+OnUnitActiveSec=60
+AccuracySec=5s
+Unit=claude-status.service
+
+[Install]
+WantedBy=timers.target

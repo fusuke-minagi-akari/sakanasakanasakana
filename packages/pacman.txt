@@ -7,3 +7,4 @@ github-cli    # GitHub CLI (provides `gh`)
 git           # branch detection
 file          # MIME fallback in `show`
 kitty         # Arch ships a current kitty
+libnotify     # notify-send — desktop popups from the claude-status poller (optional)
