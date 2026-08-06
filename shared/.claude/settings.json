@@ -22,6 +22,12 @@
         "repo": "JuliusBrussee/caveman",
         "source": "github"
       }
+    },
+    "ponytail": {
+      "source": {
+        "repo": "DietrichGebert/ponytail",
+        "source": "github"
+      }
     }
   },
   "hooks": {

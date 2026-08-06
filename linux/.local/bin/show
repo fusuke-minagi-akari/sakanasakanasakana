@@ -4,14 +4,16 @@
 #   md            -> glow
 #   image (+gif)  -> kitten icat
 #   video         -> flatpak mpv, kitty graphics, keyboard controls (space/arrows/q)
+#   point cloud   -> pcdview (interactive pcl_viewer window; --png for in-pane quad view)
 #   code / text   -> micro (in-pane editor, mouse + keyboard)
 set -euo pipefail
 
 f="${1:-}"
 if [ -z "$f" ]; then
-  echo "usage: show <path>" >&2
+  echo "usage: show <path> [renderer args...]" >&2
   exit 1
 fi
+extra=("${@:2}")
 
 # Directory -> hand off to the desktop file manager.
 if [ -d "$f" ]; then
@@ -33,6 +35,12 @@ play_md()    { glow -- "$f"; }
 play_image() { kitten icat -- "$f"; }
 play_video() { flatpak run io.mpv.Mpv --vo=kitty -- "$f"; }
 play_code()  { micro -- "$f"; }
+# 点群は pcdview の 3D ウィンドウ。--png 指定時だけ PNG パスが出るので kitty graphics で貼る
+play_cloud() {
+  local png
+  png="$(pcdview "$f" ${extra[@]+"${extra[@]}"})"
+  [ -n "$png" ] && kitten icat -- "$png"
+}
 
 case "$ext" in
   md|markdown|mdown|mkd|mdwn)
@@ -41,6 +49,8 @@ case "$ext" in
     play_image ;;
   mp4|mkv|webm|mov|avi|flv|m4v|wmv|mpg|mpeg|ogv|ts|3gp)
     play_video ;;
+  pcd)
+    play_cloud ;;
   py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|gleam|sol|asm|s|proto|graphql|gql)
     play_code ;;
   sh|bash|zsh|fish|ps1|bat|awk|sed|vim|el|lisp|scm)

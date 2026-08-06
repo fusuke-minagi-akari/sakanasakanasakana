@@ -9,6 +9,7 @@ agent_panel_sort = "priority"
 
 [experimental]
 kitty_graphics = true
+allow_nested = true
 
 pane_history = true
 [keys]
@@ -37,5 +38,5 @@ type = "pane"
 command = "less -R ~/.config/herdr/cheatsheet.txt"
 
 [theme]
-name = "terminal"
+name = "tokyo-night"
 auto_switch = false
