@@ -34,6 +34,8 @@ optional · 🍎 macOS-builtin · 🐧 Linux-only.
 | `delta` / `bat` | **diff/patch** colorizer | opt ⁴ | `git-delta` / `bat` | `git-delta` / `bat` |
 | `csvkit` (`csvlook`) | **CSV** pretty table | opt ⁵ | `csvkit` (pip) | `csvkit` (pip) |
 | `jq` | **JSON** colorized | opt ⁶ | `jq` | `jq` |
+| `uv` | **.pcd** — runs `pcdview` (inline PEP-723 deps) | opt ⁷ | `uv` | `uv` |
+| `pcl` (`pcl_viewer`) | ↑ interactive 3D window; `--png` needs neither | opt ⁷ | `pcl` | `pcl-tools` |
 
 ¹ `glow` may need the Charm apt repo / snap / `go install`. ² Without a
 kitty-graphics terminal, `show` still runs but images/video won't render inline.
@@ -43,6 +45,12 @@ kitty-graphics terminal, `show` still runs but images/video won't render inline.
 built-in `python3` aligner. ⁶ JSON falls back to `python3 -m json.tool`.
 So `show` for pdf/diff/csv/json **works with zero extra installs**; the named
 tools just make it nicer.
+
+⁷ `.pcd` is the one exception — it has no fallback. `pcdview`/`pcdrender` ship
+with this repo, but the shebang is `uv run --script`, so `uv` is required; the
+default 3D window additionally needs `pcl_viewer`. `show cloud.pcd --png` skips
+`pcl` entirely (matplotlib quad view, painted with `chafa` on macOS / `kitten
+icat` on Linux).
 
 ## 1b. `notify` — long-command completion ping
 

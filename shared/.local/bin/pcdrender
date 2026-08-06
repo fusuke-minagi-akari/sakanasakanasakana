@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# pcdrender <file.pcd> — quad-view PNG of a point cloud, path printed on stdout.
+#
+# The PNG half of pcdview. Upstream this is argv[0] dispatch (pcdrender ->
+# symlink -> pcdview), but install.sh links with `find -type f`, which skips
+# symlinks — so ship a wrapper instead and pass the flag explicitly.
+exec pcdview --png "$@"

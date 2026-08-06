@@ -1,0 +1,373 @@
+#!/usr/bin/env -S uv run --script --quiet
+# /// script
+# requires-python = ">=3.10,<3.13"
+# dependencies = ["numpy", "matplotlib"]
+# ///
+"""View a PCD point cloud in an interactive pcl_viewer window, or render it to a PNG.
+
+Two entry points, same code (mode picked from argv[0]):
+  pcdview <file.pcd>    -> pcl_viewer window (VTK), mouse orbit + PCL key bindings
+  pcdrender <file.pcd>  -> quad-view PNG, path printed on stdout (for kitten icat)
+
+Supports PCD v0.7 ascii / binary / binary_compressed. Coloring falls back
+intensity -> rgb -> z.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
+import struct
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import numpy as np
+
+_TYPE_CHAR = {"F": "f", "U": "u", "I": "i"}
+
+KEY_HELP = """\
+mouse  left drag orbit · middle/shift+left pan · right drag or wheel zoom
+       ctrl+left roll · shift+click pick point
+keys   [h] full help   [1-8] color handler  [u] color LUT   [+/-] point size
+       [g] scale grid  [o] ortho/persp      [r] reset cam   [c] print cam params
+       [ctrl+s/ctrl+r] save/restore cam     [f] fly to pt   [l] list handlers
+       [j] screenshot -> cwd                [q] quit
+color  baked at launch, not interactive — relaunch to change:
+       --color auto|intensity|rgb|z  --cmap NAME  --equalize  --point-size N
+       --axes M  --bg R,G,B  --raw (viewer's own coloring)  --pcl=-multiview"""
+
+
+def _parse_header(fh) -> tuple[dict, int]:
+    header: dict = {}
+    offset = 0
+    while True:
+        raw = fh.readline()
+        if not raw:
+            raise ValueError("PCD header ended without a DATA line")
+        offset += len(raw)
+        line = raw.decode("ascii", "replace").strip()
+        if not line or line.startswith("#"):
+            continue
+        key, _, value = line.partition(" ")
+        header[key.upper()] = value.strip()
+        if key.upper() == "DATA":
+            return header, offset
+
+
+def _dtype_from_header(header: dict) -> np.dtype:
+    fields = header["FIELDS"].split()
+    sizes = [int(v) for v in header["SIZE"].split()]
+    types = [v.upper() for v in header["TYPE"].split()]
+    counts = [int(v) for v in header.get("COUNT", " ".join("1" * len(fields))).split()]
+    spec = []
+    for name, size, tchar, count in zip(fields, sizes, types, counts, strict=True):
+        base = f"{_TYPE_CHAR[tchar]}{size}"
+        spec.append((name, base, (count,)) if count > 1 else (name, base))
+    return np.dtype(spec)
+
+
+def _lzf_decompress(src: bytes, expected: int) -> bytes:
+    """Decompress liblzf output (PCD binary_compressed payload)."""
+    out = bytearray()
+    i, n = 0, len(src)
+    while i < n:
+        ctrl = src[i]
+        i += 1
+        if ctrl < 32:
+            length = ctrl + 1
+            out += src[i : i + length]
+            i += length
+        else:
+            length = ctrl >> 5
+            ref = len(out) - ((ctrl & 0x1F) << 8) - 1
+            if length == 7:
+                length += src[i]
+                i += 1
+            ref -= src[i]
+            i += 1
+            if ref < 0:
+                raise ValueError("corrupt lzf stream (back-reference before start)")
+            for _ in range(length + 2):
+                out.append(out[ref])
+                ref += 1
+    if len(out) != expected:
+        raise ValueError(f"lzf size mismatch: got {len(out)}, header says {expected}")
+    return bytes(out)
+
+
+def load_pcd(path: Path) -> np.ndarray:
+    """Read a PCD file into a structured array of one record per point."""
+    with path.open("rb") as fh:
+        header, _ = _parse_header(fh)
+        data_kind = header["DATA"].lower()
+        dtype = _dtype_from_header(header)
+        count = int(header.get("POINTS") or int(header["WIDTH"]) * int(header["HEIGHT"]))
+        if data_kind == "ascii":
+            tokens = fh.read().decode("ascii", "replace").split()
+            try:
+                values = np.asarray(tokens, dtype=np.float64)
+            except ValueError:
+                values = np.asarray([_to_float(t) for t in tokens], dtype=np.float64)
+            ncol = sum(np.prod(dtype[i].shape or (1,), dtype=int) for i in range(len(dtype)))
+            usable = (values.size // ncol) * ncol
+            return _table_to_struct(values[:usable].reshape(-1, ncol), dtype)
+        if data_kind == "binary":
+            buf = fh.read(count * dtype.itemsize)
+            return np.frombuffer(buf, dtype=dtype, count=count)
+        if data_kind == "binary_compressed":
+            comp_size, uncomp_size = struct.unpack("<II", fh.read(8))
+            raw = _lzf_decompress(fh.read(comp_size), uncomp_size)
+            return _soa_to_struct(raw, dtype, count)
+        raise ValueError(f"unsupported PCD DATA mode: {data_kind}")
+
+
+def _to_float(token: str) -> float:
+    try:
+        return float(token)
+    except ValueError:
+        return np.nan
+
+
+def _table_to_struct(table: np.ndarray, dtype: np.dtype) -> np.ndarray:
+    out = np.zeros(table.shape[0], dtype=dtype)
+    col = 0
+    for name in dtype.names:
+        width = int(np.prod(dtype[name].shape or (1,)))
+        chunk = table[:, col : col + width]
+        out[name] = chunk[:, 0] if width == 1 else chunk
+        col += width
+    return out
+
+
+def _soa_to_struct(raw: bytes, dtype: np.dtype, count: int) -> np.ndarray:
+    """binary_compressed stores each field contiguously, not each point."""
+    out = np.zeros(count, dtype=dtype)
+    pos = 0
+    for name in dtype.names:
+        sub = dtype[name]
+        base = sub.base
+        width = int(np.prod(sub.shape or (1,)))
+        block = np.frombuffer(raw, dtype=base, count=width * count, offset=pos)
+        out[name] = block if width == 1 else block.reshape(count, width, order="F")
+        pos += base.itemsize * width * count
+    return out
+
+
+def scalar_fields(cloud: np.ndarray) -> dict[str, np.ndarray]:
+    """Scalar channels usable as a color source, keyed by lowercase name."""
+    out = {}
+    for name in cloud.dtype.names:
+        low = name.lower()
+        if low in ("x", "y", "rgb", "rgba") or cloud.dtype[name].shape:
+            continue
+        out[low] = cloud[name].astype(np.float64)
+    return out
+
+
+def pick_color(cloud: np.ndarray, xyz: np.ndarray, mode: str) -> tuple[np.ndarray, str]:
+    names = {n.lower(): n for n in cloud.dtype.names}
+    if mode in ("auto", "intensity") and "intensity" in names:
+        vals = cloud[names["intensity"]].astype(np.float64)
+        finite = vals[np.isfinite(vals)]
+        # 1 値に偏った intensity は塗り分けにならないので auto では z に落とす
+        modal_share = 0.0 if finite.size == 0 else np.bincount(np.unique(finite, return_inverse=True)[1]).max() / finite.size
+        if mode == "intensity" or (finite.size and modal_share < 0.7):
+            return vals, "intensity"
+    if mode in ("auto", "rgb") and ("rgb" in names or "rgba" in names):
+        packed = np.ascontiguousarray(cloud[names.get("rgb") or names["rgba"]])
+        # PCL は rgb を float32 の *ビット列* に詰めるので値変換でなく view で読む
+        ints = packed.view(np.uint32) if packed.dtype.kind == "f" else packed.astype(np.uint32)
+        rgb = np.stack([(ints >> 16) & 255, (ints >> 8) & 255, ints & 255], axis=1) / 255.0
+        return rgb, "rgb"
+    return xyz[:, 2], "z"
+
+
+def prepare(cloud: np.ndarray, args: argparse.Namespace) -> tuple[np.ndarray, np.ndarray, dict, str, int]:
+    """Drop non-finite points, subsample to --max-points, resolve the color source."""
+    xyz = np.stack([cloud[f].astype(np.float64) for f in ("x", "y", "z")], axis=1)
+    finite = np.isfinite(xyz).all(axis=1)
+    cloud, xyz = cloud[finite], xyz[finite]
+    if xyz.size == 0:
+        sys.exit(f"{PROG}: cloud has no finite xyz points")
+    valid = int(finite.sum())
+    if xyz.shape[0] > args.max_points:
+        idx = np.linspace(0, xyz.shape[0] - 1, args.max_points).astype(np.int64)
+        cloud, xyz = cloud[idx], xyz[idx]
+    color, label = pick_color(cloud, xyz, args.color)
+    channels = {"z": xyz[:, 2], **scalar_fields(cloud)}
+    return xyz, color, channels, label, valid
+
+
+def to_rgb(values: np.ndarray, cmap: str, equalize: bool) -> np.ndarray:
+    """Map a scalar channel (or pass through Nx3 rgb) to per-point rgb in [0,1]."""
+    import matplotlib
+
+    if values.ndim == 2:
+        return np.clip(values, 0.0, 1.0)
+    v = np.nan_to_num(values, nan=float(np.nanmin(values)) if np.isfinite(values).any() else 0.0)
+    if equalize:
+        # 順位正規化: 偏った intensity でも色が全域に広がる
+        norm = np.empty(v.size, dtype=np.float64)
+        norm[np.argsort(v, kind="stable")] = np.arange(v.size) / max(v.size - 1, 1)
+    else:
+        lo, hi = np.percentile(v, [2, 98])
+        norm = np.clip((v - lo) / (hi - lo), 0.0, 1.0) if hi > lo else np.zeros_like(v)
+    return matplotlib.colormaps[cmap](norm)[:, :3]
+
+
+def write_pcd_rgb(path: Path, xyz: np.ndarray, rgb: np.ndarray) -> None:
+    """Write x/y/z/rgb as PCD v0.7 binary, rgb bit-packed into a float32 (PCL convention)."""
+    n = xyz.shape[0]
+    ints = (np.clip(rgb, 0.0, 1.0) * 255.0).astype(np.uint32)
+    packed = (ints[:, 0] << 16) | (ints[:, 1] << 8) | ints[:, 2]
+    rec = np.empty(n, dtype=np.dtype([("x", "<f4"), ("y", "<f4"), ("z", "<f4"), ("rgb", "<u4")]))
+    rec["x"], rec["y"], rec["z"] = xyz[:, 0], xyz[:, 1], xyz[:, 2]
+    rec["rgb"] = packed
+    header = (
+        "# .PCD v0.7 - Point Cloud Data file format\n"
+        "VERSION 0.7\nFIELDS x y z rgb\nSIZE 4 4 4 4\nTYPE F F F F\nCOUNT 1 1 1 1\n"
+        f"WIDTH {n}\nHEIGHT 1\nVIEWPOINT 0 0 0 1 0 0 0\nPOINTS {n}\nDATA binary\n"
+    )
+    with path.open("wb") as fh:
+        fh.write(header.encode("ascii"))
+        fh.write(rec.tobytes())
+
+
+def view_interactive(cloud: np.ndarray, args: argparse.Namespace) -> None:
+    """Launch pcl_viewer on the cloud, with pcdview colors baked into a temp rgb PCD."""
+    binary = shutil.which(args.pcl_viewer)
+    if binary is None:
+        hint = "brew install pcl" if sys.platform == "darwin" else "sudo apt install -y pcl-tools"
+        sys.exit(f"{PROG}: {args.pcl_viewer} not found — install it with: {hint}  (or use --png)")
+
+    tmp: Path | None = None
+    if args.raw:
+        target, n, valid, extent = args.path, 0, 0, None
+    else:
+        xyz, color, _, label, valid = prepare(cloud, args)
+        n, extent = xyz.shape[0], np.ptp(xyz, axis=0)
+        tmp = Path(tempfile.mkdtemp(prefix="pcdview-")) / f"{args.path.stem}-rgb.pcd"
+        write_pcd_rgb(tmp, xyz, to_rgb(color, args.cmap, args.equalize))
+        target = tmp
+        eq = " rank" if args.equalize and color.ndim == 1 else ""
+        print(
+            f"{PROG}: {n:,}/{valid:,} pts · {extent[0]:.1f}×{extent[1]:.1f}×{extent[2]:.1f} m · "
+            f"color = {label}{eq}  cmap = {args.cmap}",
+            file=sys.stderr,
+        )
+
+    psize = int(args.point_size) if args.point_size else (1 if n > 1_000_000 else 2)
+    cmd = [binary, str(target), "-ps", str(psize), "-bc", args.bg]
+    if args.axes:
+        cmd += ["-ax", f"{args.axes:g}"]
+    cmd += args.pcl_args
+    print(KEY_HELP, file=sys.stderr, flush=True)
+    try:
+        # VTK は X11 経由。Wayland セッションでは XWayland に寄せると起動が安定する
+        env = {**os.environ, "GDK_BACKEND": "x11", "QT_QPA_PLATFORM": "xcb"}
+        rc = subprocess.call(cmd, env=env)
+    finally:
+        if tmp is not None:
+            shutil.rmtree(tmp.parent, ignore_errors=True)
+    if rc != 0:
+        sys.exit(f"{PROG}: {args.pcl_viewer} exited with status {rc}")
+
+
+def render_png(cloud: np.ndarray, args: argparse.Namespace) -> None:
+    """Render a static quad/single view PNG and print its path."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    xyz, color, _, color_label, valid = prepare(cloud, args)
+    n = xyz.shape[0]
+    psize = args.point_size if args.point_size else max(0.2, min(6.0, 150000.0 / max(n, 1)))
+
+    plt.style.use("dark_background")
+    w, h = (float(v) for v in args.size.split("x"))
+    scatter_kw = dict(s=psize, linewidths=0, marker=".", c=to_rgb(color, args.cmap, args.equalize))
+
+    views = ["iso", "top", "front", "side"] if args.view == "quad" else [args.view]
+    fig = plt.figure(figsize=(w, h), dpi=args.dpi)
+    rows, cols = (2, 2) if len(views) == 4 else (1, 1)
+    for i, view in enumerate(views, start=1):
+        if view == "iso":
+            ax = fig.add_subplot(rows, cols, i, projection="3d")
+            ax.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], **scatter_kw)
+            ax.view_init(elev=args.elev, azim=args.azim)
+            ax.set_box_aspect(np.ptp(xyz, axis=0) + 1e-9)
+            ax.set(xlabel="x", ylabel="y", zlabel="z")
+            ax.grid(alpha=0.15)
+            for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+                axis.set_pane_color((0, 0, 0, 0))
+                axis._axinfo["grid"].update(color=(1, 1, 1, 0.12), linewidth=0.5)
+        else:
+            a, b = {"top": (0, 1), "front": (0, 2), "side": (1, 2)}[view]
+            labels = ("x", "y", "z")
+            ax = fig.add_subplot(rows, cols, i)
+            ax.scatter(xyz[:, a], xyz[:, b], **scatter_kw)
+            ax.set_aspect("equal", adjustable="datalim")
+            ax.set(xlabel=labels[a], ylabel=labels[b])
+            ax.grid(alpha=0.15, linewidth=0.4)
+        ax.set_title(f"{view}  ({labels_for(view)})", fontsize=9, color="#9ad")
+
+    extent = np.ptp(xyz, axis=0)
+    fig.suptitle(
+        f"{args.path.name} — {n:,} pts shown / {valid:,} valid · "
+        f"extent {extent[0]:.1f}×{extent[1]:.1f}×{extent[2]:.1f} m · color: {color_label}",
+        fontsize=10,
+    )
+    fig.tight_layout()
+    out = args.out or Path(tempfile.gettempdir()) / f"pcdrender-{args.path.stem}.png"
+    fig.savefig(out, facecolor=fig.get_facecolor())
+    print(out)
+
+
+def labels_for(view: str) -> str:
+    return {"iso": "3D", "top": "x-y", "front": "x-z", "side": "y-z"}[view]
+
+
+PROG = Path(sys.argv[0]).name or "pcdview"
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog=PROG, description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("path", type=Path)
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--png", dest="mode", action="store_const", const="png", help="static PNG instead of a window")
+    mode.add_argument("--window", dest="mode", action="store_const", const="window", help="interactive window")
+    p.add_argument("-o", "--out", type=Path, help="PNG output path (implies --png; default temp file, path printed)")
+    p.add_argument("--view", default="quad", choices=["quad", "iso", "top", "front", "side"], help="PNG layout")
+    p.add_argument("--color", default="auto", choices=["auto", "intensity", "rgb", "z"])
+    p.add_argument("--cmap", default="turbo")
+    p.add_argument("--equalize", action="store_true", help="rank-normalize scalar color (skewed intensity)")
+    p.add_argument("--max-points", type=int, default=0, help="subsample cap (default 400k PNG / 5M window)")
+    p.add_argument("--point-size", type=float, default=0.0)
+    p.add_argument("--size", default="12x9", help="PNG figure size in inches, WxH")
+    p.add_argument("--capture", type=Path, help="headless: render to this PNG and exit (matplotlib backend)")
+    p.add_argument("--dpi", type=int, default=110)
+    p.add_argument("--elev", type=float, default=28.0)
+    p.add_argument("--azim", type=float, default=-60.0)
+    p.add_argument("--raw", action="store_true", help="hand the file to pcl_viewer untouched (no recolor/subsample)")
+    p.add_argument("--bg", default="0,0,0", help="pcl_viewer background R,G,B in 0-255")
+    p.add_argument("--axes", type=float, default=0.0, help="axes marker size in m (0 = off)")
+    p.add_argument("--pcl-viewer", dest="pcl_viewer", default="pcl_viewer", help="viewer binary name/path")
+    p.add_argument("--pcl", dest="pcl_args", action="append", default=[], metavar="ARG", help="extra pcl_viewer arg (repeatable)")
+    args = p.parse_args()
+    if not args.path.is_file():
+        sys.exit(f"{PROG}: no such file: {args.path}")
+    if args.capture:
+        args.mode, args.out = "png", args.capture
+    mode_name = args.mode or ("png" if args.out or PROG == "pcdrender" else "window")
+    if not args.max_points:
+        args.max_points = 400_000 if mode_name == "png" else 5_000_000
+    cloud = load_pcd(args.path)
+    (render_png if mode_name == "png" else view_interactive)(cloud, args)
+
+
+if __name__ == "__main__":
+    main()

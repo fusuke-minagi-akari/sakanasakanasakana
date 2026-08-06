@@ -6,12 +6,14 @@
 #   video         -> mpv --vo=kitty  (keyboard: space/arrows/q)
 #   audio         -> mpv --no-video
 #   code / text   -> $EDITOR (micro if set/installed, else less) in-pane
+#   point cloud   -> pcdview (interactive pcl_viewer window; --png for in-pane quad view)
 # macOS counterpart of linux/.local/bin/show; same behaviour, macOS tools.
 set -euo pipefail
 
 f="${1:-}"
-if [ -z "$f" ]; then echo "usage: show <path>" >&2; exit 1; fi
-case "$f" in -h|--help) echo "usage: show <path>"; exit 0 ;; esac
+if [ -z "$f" ]; then echo "usage: show <path> [renderer args...]" >&2; exit 1; fi
+case "$f" in -h|--help) echo "usage: show <path> [renderer args...]"; exit 0 ;; esac
+extra=("${@:2}")
 
 # Directory -> hand off to Finder.
 if [ -d "$f" ]; then exec open "$f"; fi
@@ -79,6 +81,15 @@ for r in rows:
 PY
 }
 
+# 点群は pcdview の 3D ウィンドウ（pcl_viewer = brew install pcl）。--png 指定時だけ
+# PNG パスが出るので chafa で貼る（icat は herdr の PTY を通らない、上記 play_image 参照）。
+play_cloud() {
+  need uv uv              # pcdview ships with this repo but runs via `uv run --script`
+  local png
+  png="$(pcdview "$f" ${extra[@]+"${extra[@]}"})"
+  [ -n "$png" ] && { need chafa chafa; chafa -f kitty -- "$png"; }
+}
+
 # JSON -> jq colorized > python json.tool
 play_json() {
   if command -v jq >/dev/null 2>&1; then jq -C . "$f" | less -R
@@ -94,6 +105,7 @@ case "$ext" in
   diff|patch)                                                       play_diff ;;
   csv|tsv|tab)                                                      play_table ;;
   json)                                                             play_json ;;
+  pcd)                                                              play_cloud ;;
   py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|gleam|sol|asm|s|proto|graphql|gql) play_code ;;
   sh|bash|zsh|fish|ps1|bat|awk|sed|vim|el|lisp|scm)                 play_code ;;
   html|htm|css|scss|sass|less|xml|yaml|yml|toml|ini|cfg|conf|json5|jsonc|env|properties|gradle|groovy|dockerfile|makefile|mk|cmake|tf|hcl) play_code ;;
