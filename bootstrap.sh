@@ -8,8 +8,7 @@
 # THIS script adds only the extras that terminal stack doesn't cover, needed for
 # the Claude Code diagram/PDF/table features:
 #   * node          — /diagram, kalmia PNG, report (via npx)
-#   * python3       — skills + render_table.py
-#   * matplotlib    — table PNGs (deps/requirements.txt)
+#   * python3       — skills (stdlib only; no pip deps)
 #   * npm globals   — @mermaid-js/mermaid-cli, md-to-pdf (deps/npm-global.txt);
 #                     OPTIONAL — npx --yes auto-fetches these on first use.
 #
@@ -54,15 +53,9 @@ say "bootstrap: feature-extras (run ./install.sh first for the terminal stack)"
 have node || { say "node missing — installing"; pm_install node || pm_install nodejs npm || true; }
 have node && say "  ok    node ($(command -v node))"
 
-# python3 (skills, render_table.py)
+# python3 (skills — stdlib only, so nothing to pip install)
 have python3 || { say "python3 missing — installing"; pm_install python3 || pm_install python@3.12 || true; }
 have python3 && say "  ok    python3 ($(command -v python3))"
-
-# matplotlib (table PNGs) via pip
-if have python3; then
-  say "pip: deps/requirements.txt"
-  run "python3 -m pip install --user -r '$REPO/deps/requirements.txt'"
-fi
 
 # npm globals — optional; npx --yes auto-fetches otherwise
 if [ "$NPM" = 1 ]; then

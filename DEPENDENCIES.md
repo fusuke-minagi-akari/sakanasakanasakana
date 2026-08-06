@@ -106,8 +106,6 @@ the cache. `test.sh` fakes any outage state offline — see SETUP.md §2b.
 | ↑ renderer | `@mermaid-js/mermaid-cli` (via `npx --yes`, auto-fetch) | core | (npx) | (npx) |
 | kalmia PNG dims | `sips` 🍎 / `imagemagick` 🐧 | opt | 🍎 builtin | `imagemagick` |
 | `report` skill (md→PDF) | `md-to-pdf` npm (bundles Chromium) | core | (npx/npm) | (npx/npm) ⁵ |
-| `summarize-to-slack`, `render_table.py` | `python3` + `matplotlib` | core | `pip: matplotlib` | `python3-matplotlib` |
-| ↑ CJK text in tables | CJK font | core (JP) | 🍎 Hiragino builtin | `fonts-noto-cjk` |
 
 ⁵ Chromium that `md-to-pdf`/puppeteer downloads needs libs on Linux
 (`libnss3 libatk1.0-0 libgbm1 …`) — install if PDF gen fails.
@@ -152,11 +150,11 @@ auth — not `brew`/`apt`:
 ```
 
 **Layer 2 — Claude-feature extras (optional, additive).** `./bootstrap.sh` adds
-what layer 1 doesn't cover: node, python3+matplotlib, and (optionally) the npm
+what layer 1 doesn't cover: node, python3, and (optionally) the npm
 diagram/PDF tools. Never touches the layer-1 build.
 
 ```sh
-./bootstrap.sh            # node, python3, matplotlib (deps/requirements.txt)
+./bootstrap.sh            # node, python3
 ./bootstrap.sh --npm      # also pin npm globals (deps/npm-global.txt); else npx auto-fetches
 ```
 

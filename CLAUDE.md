@@ -18,8 +18,8 @@ Active set on any machine = `shared/` + `<uname>/`.
 **When the user asks to set up, install, adapt, or bootstrap this on a machine:
 follow `SETUP.md` step by step.** Order: detect OS (`uname -s`) → `./install.sh`
 (installs the terminal stack — herdr/kitty/CLI — via `lib/deps.sh`, then symlinks
-+ service) → `./bootstrap.sh` (optional Claude-feature extras: node/python/
-matplotlib) → OS-specific service + `herdr integration install claude` → seed
++ service) → `./bootstrap.sh` (optional Claude-feature extras: node/python)
+→ OS-specific service + `herdr integration install claude` → seed
 per-user configs → verify. `DEPENDENCIES.md` is the functionality→deps authority.
 Do NOT edit the layer-1 build (`lib/deps.sh`, `packages/*.txt`, `install.sh`) on a
 machine you can't test it on — it's the shared cross-OS installer. `caveman`

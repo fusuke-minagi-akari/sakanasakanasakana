@@ -47,7 +47,7 @@ seeds `*.example` configs, and on macOS renders + loads the launchd job.
 **Layer 2 — Claude-feature extras** (optional, additive — never touches layer 1):
 
 ```sh
-./bootstrap.sh          # node, python3, matplotlib (for /diagram, report, table PNGs)
+./bootstrap.sh          # node, python3 (for /diagram, report)
 ./bootstrap.sh --npm    # also pin npm globals; else npx --yes auto-fetches them
 ```
 

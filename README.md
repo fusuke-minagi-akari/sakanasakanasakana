@@ -27,8 +27,8 @@ sakanasakanasakana/
 ├── install.sh          # 依存(端末stack)インストール + shared/ + <os>/ を $HOME へ symlink
 ├── lib/deps.sh         # 状態認識インストーラ（herdr/kitty/CLI、install.sh が source）
 ├── packages/           # 端末stackのパッケージ一覧: brew.txt / apt.txt / pacman.txt
-├── bootstrap.sh        # 追加: Claude機能用の extras（node/python/matplotlib）
-├── deps/               # extras マニフェスト: requirements.txt(pip) / npm-global.txt
+├── bootstrap.sh        # 追加: Claude機能用の extras（node/python）
+├── deps/               # extras マニフェスト: npm-global.txt
 ├── DEPENDENCIES.md     # 機能 → 依存マトリクス（何が何を要るか）
 ├── SETUP.md            # OS 適応の手順書（Claude Code が読む）
 ├── CLAUDE.md           # Claude Code 自動読込のプロジェクト指示 + ガードレール
@@ -65,7 +65,7 @@ sakanasakanasakana/
 | `.claude/hooks/herdr-claude-done.sh` | Claude 完了 → herdr バナー + サウンド。 |
 | `.claude/commands/*.md` | カスタムスラッシュコマンド（standup/nippo/research 含む、サニタイズ済み）。 |
 | `.claude/skills/*` | カスタムスキル。 |
-| `.claude/scripts/*` | 補助スクリプト（render_table.py, md-to-pdf 等）。 |
+| `.claude/scripts/*` | 補助スクリプト（md-to-pdf, claude-status 等）。 |
 
 ## セットアップ & インストール / Setup & Install
 
@@ -94,12 +94,12 @@ Claude Code は root の `CLAUDE.md` を自動で読み、`SETUP.md` の手順�
 ./install.sh            # 依存(herdr/kitty/CLI) + symlink + example 展開 + launchd 起動
 ./install.sh --dry-run  # 変更せず動作だけ表示
 ./install.sh --no-deps  # 依存インストールを飛ばして symlink だけ
-./bootstrap.sh          # 追加: node/python/matplotlib（/diagram, report, 表PNG 用）
+./bootstrap.sh          # 追加: node/python（/diagram, report 用）
 ```
 
 **2 層構成:**
 - **Layer 1（端末stack）** — `install.sh` が `lib/deps.sh` 経由で状態認識インストール（herdr, kitty, glow chafa mpv jq gh git file）。一覧は `packages/{brew,apt,pacman}.txt`。cross-OS・テスト済み — **触らない**。
-- **Layer 2（Claude機能extras、任意）** — `bootstrap.sh` が Layer 1 に無い物だけ追加（node/python/matplotlib、`--npm` で npm globals）。Layer 1 は一切触らない。
+- **Layer 2（Claude機能extras、任意）** — `bootstrap.sh` が Layer 1 に無い物だけ追加（node/python、`--npm` で npm globals）。Layer 1 は一切触らない。
 
 機能→依存の全体は **[`DEPENDENCIES.md`](DEPENDENCIES.md)**。
 
@@ -128,7 +128,7 @@ NDA・PII を含む値はコミット前に汎用プレースホルダへ置換�
 
 全機能→依存の完全なマトリクス（機能ごとに何が core / optional か、OS 別パッケージ名）は **[`DEPENDENCIES.md`](DEPENDENCIES.md)**。Layer 1 一覧は `packages/*.txt`（`install.sh` 経由）、Layer 2 extras は `deps/`（`bootstrap.sh` 経由）。
 
-ざっくり: `herdr`+`kitty`（`install.sh` が自動導入）+ `git jq gh perl file`（daemon）、`chafa mpv glow`（show）、`node`+`npx`（diagram/kalmia/report）、`python3`+`matplotlib`+CJK フォント（表 PNG）。daemon の `hashkey` は macOS `md5` 前提（`md5` 無い distro では共有キーに劣化、ラベル自体は表示）。OS 差はサービス管理（macOS=launchd 自動 / Linux=systemd user unit、`SETUP.md` §2）。caveman プラグイン・MCP サーバ・melchior wrapper は手動（`DEPENDENCIES.md` §6）。
+ざっくり: `herdr`+`kitty`（`install.sh` が自動導入）+ `git jq gh perl file`（daemon）、`chafa mpv glow`（show）、`node`+`npx`（diagram/kalmia/report）、`python3`（skills、stdlib のみ）、`uv`+`pcl`（show の .pcd）。daemon の `hashkey` は macOS `md5` 前提（`md5` 無い distro では共有キーに劣化、ラベル自体は表示）。OS 差はサービス管理（macOS=launchd 自動 / Linux=systemd user unit、`SETUP.md` §2）。caveman プラグイン・MCP サーバ・melchior wrapper は手動（`DEPENDENCIES.md` §6）。
 
 OS 別 `show`/`clip` の追加ツール: **Linux** = `kitten`(Kitty)・flatpak `io.mpv.Mpv`・`micro`・`xdg-open`・`xclip`・`realpath`。**macOS** = `chafa`(icat は herdr PTY 越しで不可)・`mpv`・`glow`・`${EDITOR}`/`micro`・`open`・`pbcopy`/`osascript`。
 
