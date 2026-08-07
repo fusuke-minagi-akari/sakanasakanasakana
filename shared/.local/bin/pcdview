@@ -236,9 +236,28 @@ def write_pcd_rgb(path: Path, xyz: np.ndarray, rgb: np.ndarray) -> None:
         fh.write(rec.tobytes())
 
 
+def resolve_viewer(name: str) -> str | None:
+    """Locate the viewer binary, PATH first.
+
+    Homebrew's pcl puts pcl_viewer in an .app bundle at the formula root rather than
+    bin/, so it never lands on PATH and `which` misses it. Fall back to the bundle
+    via the opt/ prefix (a symlink to the current Cellar version, so it survives
+    upgrades — the Cellar path itself does not).
+    """
+    binary = shutil.which(name)
+    if binary:
+        return binary
+    if sys.platform == "darwin" and os.path.basename(name) == "pcl_viewer":
+        for prefix in ("/opt/homebrew/opt/pcl", "/usr/local/opt/pcl"):
+            candidate = Path(prefix) / "pcl_viewer.app" / "Contents" / "MacOS" / "pcl_viewer"
+            if os.access(candidate, os.X_OK):
+                return str(candidate)
+    return None
+
+
 def view_interactive(cloud: np.ndarray, args: argparse.Namespace) -> None:
     """Launch pcl_viewer on the cloud, with pcdview colors baked into a temp rgb PCD."""
-    binary = shutil.which(args.pcl_viewer)
+    binary = resolve_viewer(args.pcl_viewer)
     if binary is None:
         hint = "brew install pcl" if sys.platform == "darwin" else "sudo apt install -y pcl-tools"
         sys.exit(f"{PROG}: {args.pcl_viewer} not found — install it with: {hint}  (or use --png)")
@@ -266,8 +285,11 @@ def view_interactive(cloud: np.ndarray, args: argparse.Namespace) -> None:
     cmd += args.pcl_args
     print(KEY_HELP, file=sys.stderr, flush=True)
     try:
-        # VTK は X11 経由。Wayland セッションでは XWayland に寄せると起動が安定する
-        env = {**os.environ, "GDK_BACKEND": "x11", "QT_QPA_PLATFORM": "xcb"}
+        # VTK は X11 経由。Wayland セッションでは XWayland に寄せると起動が安定する。
+        # macOS の VTK は Cocoa バックエンドなので、この上書きは Linux に限定する
+        env = dict(os.environ)
+        if sys.platform.startswith("linux"):
+            env |= {"GDK_BACKEND": "x11", "QT_QPA_PLATFORM": "xcb"}
         rc = subprocess.call(cmd, env=env)
     finally:
         if tmp is not None:
