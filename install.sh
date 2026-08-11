@@ -137,8 +137,11 @@ if [ "$OS" = linux ] && [ -d "$REPO/linux/.config/systemd/user" ]; then
     for U in "$REPO"/linux/.config/systemd/user/*.timer; do
       [ -f "$U" ] || continue
       T="$(basename "$U")"
-      systemctl --user enable --now "$T" 2>/dev/null && say "  systemd: enabled $T" \
-        || say "  systemd: could not enable $T (no user session? run: systemctl --user enable --now $T)"
+      if systemctl --user enable --now "$T" 2>/dev/null; then
+        say "  systemd: enabled $T"
+      else
+        say "  systemd: could not enable $T (no user session? run: systemctl --user enable --now $T)"
+      fi
     done
   else
     say "systemd: skipped (--no-load/--dry-run or systemctl missing)"
