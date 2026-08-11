@@ -58,10 +58,24 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"$HOME/.claude/hooks/ponytail-session-mode.sh\"",
+            "timeout": 5,
+            "type": "command"
+          }
+        ]
+      }
     ]
   },
   "language": "english, japanese as secondary",
   "permissions": {
+    "allow": [
+      "Bash(curl -s* https://pbs.twimg.com/*)"
+    ],
     "defaultMode": "bypassPermissions",
     "deny": [
       "Bash(rm :*)",
@@ -133,7 +147,15 @@
       "Bash(git reset --hard*)",
       "Bash(git checkout -- *)",
       "Bash(git clean*)",
-      "Bash(curl*)",
+      "Bash(curl *-X POST*)",
+      "Bash(curl *-X PUT*)",
+      "Bash(curl *-X DELETE*)",
+      "Bash(curl *-d *)",
+      "Bash(curl *--data*)",
+      "Bash(curl *-T *)",
+      "Bash(curl *--upload-file*)",
+      "Bash(curl *| sh*)",
+      "Bash(curl *| bash*)",
       "Bash(wget*)",
       "Bash(gh pr create*)",
       "Bash(gh issue create*)",
