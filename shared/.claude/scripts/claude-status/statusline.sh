@@ -17,6 +17,11 @@ if [ -f "$BADGE" ]; then
   [ -n "$out" ] && parts+=("$out")
 fi
 
+if [ -f "$HERE/ratelimit.sh" ]; then
+  out=$(printf '%s' "$INPUT" | bash "$HERE/ratelimit.sh" 2>/dev/null)
+  [ -n "$out" ] && parts+=("$out")
+fi
+
 if [ -f "$HERE/segment.sh" ]; then
   out=$(bash "$HERE/segment.sh" 2>/dev/null)
   [ -n "$out" ] && parts+=("$out")
