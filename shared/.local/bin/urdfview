@@ -1,0 +1,54 @@
+#!/usr/bin/env -S uv run --script --quiet
+# /// script
+# requires-python = ">=3.10,<3.13"
+# dependencies = ["yourdfpy", "trimesh", "scipy", "pyglet<2"]
+# ///
+"""View a URDF's kinematic tree and meshes in an interactive trimesh window.
+
+urdfview <robot.urdf> [--collision] [--cfg joint=value ...]
+
+mouse  left drag orbit · scroll zoom · right drag / shift+left pan
+keys   z toggle wireframe · a toggle axes · q/esc quit
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import yourdfpy
+
+PROG = "urdfview"
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog=PROG, description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("path", type=Path)
+    p.add_argument("--collision", action="store_true", help="show collision geometry instead of visual meshes")
+    p.add_argument("--cfg", action="append", default=[], metavar="JOINT=VALUE", help="set a joint configuration (repeatable)")
+    args = p.parse_args()
+    if not args.path.is_file():
+        sys.exit(f"{PROG}: no such file: {args.path}")
+
+    robot = yourdfpy.URDF.load(
+        str(args.path),
+        load_meshes=not args.collision,
+        load_collision_meshes=args.collision,
+        build_scene_graph=True,
+    )
+    if args.cfg:
+        cfg = {}
+        for kv in args.cfg:
+            joint, sep, value = kv.partition("=")
+            if not sep:
+                sys.exit(f"{PROG}: --cfg expects JOINT=VALUE, got: {kv!r}")
+            cfg[joint] = float(value)
+        robot.update_cfg(cfg)
+
+    print(f"{PROG}: {len(robot.joint_map)} joints, {len(robot.link_map)} links", file=sys.stderr)
+    robot.show(collision_geometry=args.collision)
+
+
+if __name__ == "__main__":
+    main()

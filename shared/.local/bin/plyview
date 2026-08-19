@@ -1,0 +1,145 @@
+#!/usr/bin/env -S uv run --script --quiet
+# /// script
+# requires-python = ">=3.10,<3.13"
+# dependencies = ["open3d", "plyfile", "numpy"]
+# ///
+"""View a PLY point cloud or mesh in an interactive Open3D window (RGB if present).
+
+plyview <file.ply> [--wireframe] [--normals] [--color R,G,B]
+                    [--min-opacity N] [--saturate N] [--point-size N] [--voxel N]
+
+Files that carry an (nx,ny,nz) normal column that's all-zero — common in
+splat exports, which write it only for PLY-format compliance and never train
+it — would otherwise render solid black: Open3D lights a point cloud using
+its normals when present, and a zero-length normal kills the lighting dot
+product regardless of the true vertex color. Such normals are dropped before
+display. --voxel thins very dense clouds (voxel-grid downsample, in file
+units), which also helps if points are still too small/sparse-looking.
+
+Mesh if the file has faces, otherwise a point cloud. Vertex colors from the
+file are used automatically; --color only sets the fallback for files with
+no color data. If the file has no red/green/blue but does have Gaussian-
+Splatting SH DC terms (f_dc_0/1/2 — the Nerfstudio/gsplat/3DGS export
+convention), color is derived from those instead of falling back to flat gray
+(splat shape/opacity/higher-order SH are not rendered — this plots colored
+splat centers, not a real Gaussian rasterizer, and the DC term alone is only
+the view-independent part of a splat's color — a real scene commonly *is*
+mostly low-chroma this way, e.g. gray walls/floor/desks, with color
+concentrated in a few objects). --min-opacity drops points below a
+sigmoid-opacity threshold when the file has an opacity column. --saturate is
+a cosmetic exaggeration (push colors away from gray by a multiplier) to make
+sparse colored points easier to spot — it does not reflect the real color.
+
+mouse  left drag orbit · scroll zoom · ctrl+left pan · shift+left roll
+keys   [h] full help (printed to the terminal that launched it) · [q/esc] quit
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import numpy as np
+import open3d as o3d
+
+PROG = "plyview"
+SH_C0 = 0.28209479177387814  # l=0 real spherical harmonic normalization constant
+
+
+def gsplat_extras(path: Path, n: int) -> tuple[np.ndarray | None, np.ndarray | None]:
+    """(rgb, opacity) derived from Gaussian-Splatting SH DC + opacity columns, or (None, None)."""
+    from plyfile import PlyData
+
+    el = PlyData.read(str(path))["vertex"]
+    names = el.data.dtype.names
+    if not all(f"f_dc_{i}" in names for i in range(3)):
+        return None, None
+    if el.count != n:
+        return None, None
+    dc = np.stack([el[f"f_dc_{i}"] for i in range(3)], axis=1).astype(np.float64)
+    rgb = np.clip(0.5 + SH_C0 * dc, 0.0, 1.0)
+    opacity = 1.0 / (1.0 + np.exp(-el["opacity"].astype(np.float64))) if "opacity" in names else None
+    return rgb, opacity
+
+
+def saturate(colors: np.ndarray, factor: float) -> np.ndarray:
+    return np.clip(0.5 + (colors - 0.5) * factor, 0.0, 1.0)
+
+
+def show(geoms: list, window_name: str, point_size: float | None = None, **render_opts) -> None:
+    """draw_geometries() can't set point_size; use the Visualizer directly for that."""
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(window_name=window_name)
+    for g in geoms:
+        vis.add_geometry(g)
+    opt = vis.get_render_option()
+    for k, v in render_opts.items():
+        setattr(opt, k, v)
+    if point_size is not None:
+        opt.point_size = point_size
+    vis.run()
+    vis.destroy_window()
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog=PROG, description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("path", type=Path)
+    p.add_argument("--wireframe", action="store_true", help="mesh: also draw wireframe")
+    p.add_argument("--normals", action="store_true", help="point cloud: show normals")
+    p.add_argument("--color", default="0.6,0.6,0.6", metavar="R,G,B", help="fallback flat color in 0-1, used only if the file has no RGB")
+    p.add_argument("--min-opacity", type=float, default=0.0, metavar="N", help="gsplat only: drop points with sigmoid(opacity) below N (0-1)")
+    p.add_argument("--saturate", type=float, default=1.0, metavar="N", help="cosmetic: multiply color's distance from gray by N (>1 pops color, <1 mutes it)")
+    p.add_argument("--point-size", type=float, default=4.0, metavar="N", help="point cloud dot size in px (Open3D default is 5)")
+    p.add_argument("--voxel", type=float, default=0.0, metavar="N", help="point cloud: voxel-downsample to at most one point per NxNxN cube first (file units, e.g. meters)")
+    args = p.parse_args()
+    if not args.path.is_file():
+        sys.exit(f"{PROG}: no such file: {args.path}")
+    fallback = [float(v) for v in args.color.split(",")]
+
+    mesh = o3d.io.read_triangle_mesh(str(args.path))
+    if len(mesh.triangles) > 0:
+        had_rgb = mesh.has_vertex_colors()
+        if not had_rgb:
+            mesh.paint_uniform_color(fallback)
+        elif args.saturate != 1.0:
+            mesh.vertex_colors = o3d.utility.Vector3dVector(saturate(np.asarray(mesh.vertex_colors), args.saturate))
+        mesh.compute_vertex_normals()
+        print(
+            f"{PROG}: mesh — {len(mesh.vertices):,} verts, {len(mesh.triangles):,} tris, rgb={'yes' if had_rgb else 'no'}",
+            file=sys.stderr,
+        )
+        show([mesh], args.path.name, mesh_show_wireframe=args.wireframe, mesh_show_back_face=True)
+        return
+
+    pcd = o3d.io.read_point_cloud(str(args.path))
+    if len(pcd.points) == 0:
+        sys.exit(f"{PROG}: no vertices found in {args.path}")
+    if pcd.has_normals() and not np.any(np.asarray(pcd.normals)):
+        pcd.normals = o3d.utility.Vector3dVector()  # all-zero normals would light the cloud to black
+
+    rgb_label = "yes" if pcd.has_colors() else "no"
+    if not pcd.has_colors():
+        gcolor, opacity = gsplat_extras(args.path, len(pcd.points))
+        if gcolor is not None:
+            pcd.colors = o3d.utility.Vector3dVector(gcolor)
+            rgb_label = "derived (gsplat SH dc0)"
+            if args.min_opacity > 0 and opacity is not None:
+                mask = opacity >= args.min_opacity
+                pcd = pcd.select_by_index(np.nonzero(mask)[0])
+                print(f"{PROG}: opacity>={args.min_opacity}: kept {mask.sum():,}/{len(mask):,} pts", file=sys.stderr)
+        else:
+            pcd.paint_uniform_color(fallback)
+    if args.saturate != 1.0 and pcd.has_colors():
+        pcd.colors = o3d.utility.Vector3dVector(saturate(np.asarray(pcd.colors), args.saturate))
+    if args.voxel > 0:
+        before = len(pcd.points)
+        pcd = pcd.voxel_down_sample(args.voxel)
+        print(f"{PROG}: voxel {args.voxel}: {before:,} -> {len(pcd.points):,} pts", file=sys.stderr)
+
+    print(f"{PROG}: point cloud — {len(pcd.points):,} pts, rgb={rgb_label}", file=sys.stderr)
+    show([pcd], args.path.name, point_size=args.point_size, point_show_normal=args.normals)
+
+
+if __name__ == "__main__":
+    main()

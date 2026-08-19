@@ -1,0 +1,132 @@
+#!/usr/bin/env -S uv run --script --quiet
+# /// script
+# requires-python = ">=3.10,<3.13"
+# dependencies = ["torch", "gsplat", "nerfview", "viser", "matplotlib", "splines", "scipy", "plyfile", "numpy"]
+# ///
+"""Real Gaussian-Splat rendering for a 3D Gaussian Splatting .ply (Nerfstudio/
+gsplat/3DGS export) — alpha-blended anisotropic ellipses with view-dependent
+spherical-harmonics color, via gsplat's CUDA rasterizer. This is the same
+rendering technique superspl.at uses; unlike plyview (which just plots
+opaque colored dots at the Gaussian centers), this reads scale_*/rot_* too.
+
+gsplatview <file.ply> [--port N] [--sh-degree N] [--min-opacity N] [--device cuda]
+
+Opens a local web server; open the printed URL in a browser for mouse-orbit
+camera controls (drag to orbit, scroll to zoom — same feel as superspl.at).
+Needs an NVIDIA GPU and a CUDA toolkit new enough to compile gsplat's
+kernels (requires C++20 support, i.e. CUDA 12.x+): this script looks for
+/usr/local/cuda-12*/bin/nvcc and points CUDA_HOME/PATH at it automatically
+if the default `nvcc` on PATH is older — set CUDA_HOME yourself first if
+your newer toolkit lives somewhere else. First run JIT-compiles gsplat's
+CUDA extension (~1-2 min); cached after that.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+
+
+def _fix_cuda_home() -> None:
+    if "CUDA_HOME" in os.environ:
+        return
+    for cand in sorted(Path("/usr/local").glob("cuda-1*"), reverse=True):
+        if (cand / "bin" / "nvcc").exists():
+            os.environ["CUDA_HOME"] = str(cand)
+            os.environ["PATH"] = f"{cand / 'bin'}:{os.environ.get('PATH', '')}"
+            return
+
+
+def load_splat(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
+    from plyfile import PlyData
+
+    el = PlyData.read(str(path))["vertex"]
+    names = el.data.dtype.names
+    required = [f"rot_{i}" for i in range(4)] + [f"scale_{i}" for i in range(3)] + ["opacity"] + [f"f_dc_{i}" for i in range(3)]
+    missing = [r for r in required if r not in names]
+    if missing:
+        sys.exit(f"gsplatview: not a Gaussian-Splatting ply — missing columns: {', '.join(missing)} (try plyview instead)")
+
+    n = el.count
+    xyz = np.stack([el["x"], el["y"], el["z"]], axis=1).astype(np.float32)
+    quats = np.stack([el[f"rot_{i}"] for i in range(4)], axis=1).astype(np.float32)
+    scales = np.exp(np.stack([el[f"scale_{i}"] for i in range(3)], axis=1).astype(np.float32))
+    opacities = 1.0 / (1.0 + np.exp(-el["opacity"].astype(np.float32)))
+    dc = np.stack([el[f"f_dc_{i}"] for i in range(3)], axis=1).astype(np.float32)
+
+    n_rest = sum(1 for i in range(64) if f"f_rest_{i}" in names)
+    degree = {45: 3, 24: 2, 9: 1}.get(n_rest, 0)
+    k = (degree + 1) ** 2
+    sh = np.zeros((n, k, 3), dtype=np.float32)
+    sh[:, 0, :] = dc
+    if degree > 0:
+        per_channel = k - 1
+        rest = np.stack([el[f"f_rest_{i}"] for i in range(per_channel * 3)], axis=1).astype(np.float32)
+        for c in range(3):
+            sh[:, 1:k, c] = rest[:, c * per_channel : (c + 1) * per_channel]
+    return xyz, quats, scales, opacities, sh, degree
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog="gsplatview", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("path", type=Path)
+    p.add_argument("--port", type=int, default=8080)
+    p.add_argument("--sh-degree", type=int, default=None, help="override auto-detected SH degree (0-3)")
+    p.add_argument("--min-opacity", type=float, default=0.0, metavar="N", help="drop gaussians with sigmoid(opacity) below N before rendering")
+    p.add_argument("--device", default="cuda")
+    args = p.parse_args()
+    if not args.path.is_file():
+        sys.exit(f"gsplatview: no such file: {args.path}")
+
+    _fix_cuda_home()
+
+    import torch
+
+    if args.device == "cuda" and not torch.cuda.is_available():
+        sys.exit("gsplatview: no CUDA GPU visible to torch")
+    import gsplat
+    import nerfview
+    import viser
+
+    xyz, quats, scales, opacities, sh, degree = load_splat(args.path)
+    if args.min_opacity > 0:
+        mask = opacities >= args.min_opacity
+        xyz, quats, scales, opacities, sh = xyz[mask], quats[mask], scales[mask], opacities[mask], sh[mask]
+        print(f"gsplatview: opacity>={args.min_opacity}: kept {mask.sum():,}/{len(mask):,}", file=sys.stderr)
+    sh_degree = args.sh_degree if args.sh_degree is not None else degree
+    print(f"gsplatview: {len(xyz):,} gaussians, sh degree {sh_degree}", file=sys.stderr)
+
+    device = args.device
+    means = torch.from_numpy(xyz).to(device)
+    quats_t = torch.from_numpy(quats).to(device)
+    scales_t = torch.from_numpy(scales).to(device)
+    opacities_t = torch.from_numpy(opacities).to(device)
+    colors_t = torch.from_numpy(sh).to(device)
+
+    def render_fn(camera_state, img_wh):
+        w, h = img_wh
+        k_mat = camera_state.get_K(img_wh).astype(np.float32)
+        viewmat = np.linalg.inv(camera_state.c2w).astype(np.float32)
+        viewmats = torch.from_numpy(viewmat[None]).to(device)
+        ks = torch.from_numpy(k_mat[None]).to(device)
+        with torch.no_grad():
+            render_colors, _, _ = gsplat.rasterization(
+                means, quats_t, scales_t, opacities_t, colors_t,
+                viewmats, ks, w, h, sh_degree=sh_degree, render_mode="RGB",
+            )
+        return (render_colors[0].clamp(0, 1).cpu().numpy() * 255).astype(np.uint8)
+
+    server = viser.ViserServer(port=args.port)
+    nerfview.Viewer(server=server, render_fn=render_fn, mode="rendering")
+    print(f"gsplatview: open http://localhost:{args.port} — drag to orbit, scroll to zoom", file=sys.stderr)
+    while True:
+        time.sleep(1.0)
+
+
+if __name__ == "__main__":
+    main()

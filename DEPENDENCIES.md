@@ -34,8 +34,8 @@ optional · 🍎 macOS-builtin · 🐧 Linux-only.
 | `delta` / `bat` | **diff/patch** colorizer | opt ⁴ | `git-delta` / `bat` | `git-delta` / `bat` |
 | `csvkit` (`csvlook`) | **CSV** pretty table | opt ⁵ | `csvkit` (pip) | `csvkit` (pip) |
 | `jq` | **JSON** colorized | opt ⁶ | `jq` | `jq` |
-| `uv` | **.pcd** — runs `pcdview` (inline PEP-723 deps) | opt ⁷ | `uv` | `uv` |
-| `pcl` (`pcl_viewer`) | ↑ interactive 3D window; `--png` needs neither | opt ⁷ | `pcl` | `pcl-tools` |
+| `uv` | **.pcd/.urdf/.usd\*/.ply** — runs `pcdview`/`urdfview`/`usdshow`/`plyview` (inline PEP-723 deps) | opt ⁷ | `uv` | `uv` |
+| `pcl` (`pcl_viewer`) | ↑ **.pcd** interactive 3D window; `--png` needs neither | opt ⁷ | `pcl` | `pcl-tools` |
 
 ¹ `glow` may need the Charm apt repo / snap / `go install`. ² Without a
 kitty-graphics terminal, `show` still runs but images/video won't render inline.
@@ -46,11 +46,37 @@ built-in `python3` aligner. ⁶ JSON falls back to `python3 -m json.tool`.
 So `show` for pdf/diff/csv/json **works with zero extra installs**; the named
 tools just make it nicer.
 
-⁷ `.pcd` is the one exception — it has no fallback. `pcdview`/`pcdrender` ship
-with this repo, but the shebang is `uv run --script`, so `uv` is required; the
-default 3D window additionally needs `pcl_viewer`. `show cloud.pcd --png` skips
-`pcl` entirely (matplotlib quad view, painted with `chafa` on macOS / `kitten
-icat` on Linux).
+⁷ `.pcd`/`.urdf`/`.usd`+`.usda`+`.usdc`+`.usdz`/`.ply` have no fallback. `pcdview`,
+`urdfview`, `usdshow`, `plyview` ship with this repo; each is a `uv run --script`
+with its own PEP-723 deps block (yourdfpy+trimesh for URDF, usd-core+trimesh for
+USD, open3d for PLY), fetched by `uv` on first launch — no separate install
+step. The default 3D window for `.pcd` additionally needs `pcl_viewer`; `show
+cloud.pcd --png` skips `pcl` entirely (matplotlib quad view, painted with
+`chafa` on macOS / `kitten icat` on Linux). URDF/USD/PLY windows are always
+interactive (no `--png` mode).
+
+## 1a. `gsplatview` — real Gaussian-Splat rendering (not part of `show`)
+
+| Dep | Role | core/opt | Linux |
+|---|---|---|---|
+| `uv` | runs the PEP-723 script | core | `uv` |
+| NVIDIA GPU + driver | gsplat's CUDA rasterizer | core | 🐧 (this repo is Linux-only for this tool) |
+| CUDA toolkit ≥12.x (`nvcc` with C++20 support) | JIT-compiles gsplat's kernels on first run (~1-2 min, cached after) | core ⁸ | apt/NVIDIA repo `cuda-toolkit-12-*` |
+
+`plyview` (§1) only plots opaque colored dots at each Gaussian's center —
+fast, no GPU needed, but nothing like superspl.at's actual render.
+`gsplatview <file.ply>` instead runs gsplat's real rasterizer (alpha-blended
+anisotropic ellipses, view-dependent SH color) and serves an interactive
+mouse-orbit viewer over a local web server (`viser`+`nerfview`, opened in a
+browser) — same technique and feel as superspl.at, run locally on a GPU
+machine (confirmed working with the RTX 3090 on dx-galois). Separate command
+from `show`/`plyview` since it needs a GPU, a real CUDA toolkit, and a
+browser tab, not just a terminal window.
+
+⁸ If the default `nvcc` on `PATH` predates C++20 (e.g. the system's
+apt-installed CUDA 11.5), `gsplatview` auto-detects and switches to
+`/usr/local/cuda-12*` if present; otherwise set `CUDA_HOME` to a newer
+toolkit yourself before running.
 
 ## 1b. `notify` — long-command completion ping
 

@@ -7,6 +7,9 @@
 #   audio         -> mpv --no-video
 #   code / text   -> $EDITOR (micro if set/installed, else less) in-pane
 #   point cloud   -> pcdview (interactive pcl_viewer window; --png for in-pane quad view)
+#   urdf          -> urdfview (interactive trimesh window)
+#   usd/usda/usdc/usdz -> usdshow (interactive trimesh window)
+#   ply           -> plyview (interactive Open3D window, mesh or point cloud, rgb if present)
 # macOS counterpart of linux/.local/bin/show; same behaviour, macOS tools.
 set -euo pipefail
 
@@ -90,6 +93,11 @@ play_cloud() {
   [ -n "$png" ] && { need chafa chafa; chafa -f kitty -- "$png"; }
 }
 
+# ロボット記述・3D資産・点群/メッシュは各ビューアの別ウィンドウ (uv run --script、依存は初回起動時に自動取得)
+play_urdf() { need uv uv; urdfview "$f" ${extra[@]+"${extra[@]}"}; }
+play_usd()  { need uv uv; usdshow "$f" ${extra[@]+"${extra[@]}"}; }
+play_ply()  { need uv uv; plyview "$f" ${extra[@]+"${extra[@]}"}; }
+
 # JSON -> jq colorized > python json.tool
 play_json() {
   if command -v jq >/dev/null 2>&1; then jq -C . "$f" | less -R
@@ -106,6 +114,9 @@ case "$ext" in
   csv|tsv|tab)                                                      play_table ;;
   json)                                                             play_json ;;
   pcd)                                                              play_cloud ;;
+  urdf)                                                             play_urdf ;;
+  usd|usda|usdc|usdz)                                               play_usd ;;
+  ply)                                                              play_ply ;;
   py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|gleam|sol|asm|s|proto|graphql|gql) play_code ;;
   sh|bash|zsh|fish|ps1|bat|awk|sed|vim|el|lisp|scm)                 play_code ;;
   html|htm|css|scss|sass|less|xml|yaml|yml|toml|ini|cfg|conf|json5|jsonc|env|properties|gradle|groovy|dockerfile|makefile|mk|cmake|tf|hcl) play_code ;;

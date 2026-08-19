@@ -5,6 +5,10 @@
 #   image (+gif)  -> kitten icat
 #   video         -> flatpak mpv, kitty graphics, keyboard controls (space/arrows/q)
 #   point cloud   -> pcdview (interactive pcl_viewer window; --png for in-pane quad view)
+#   urdf          -> urdfview (interactive trimesh window)
+#   usd/usda/usdc/usdz -> usdshow (interactive trimesh window)
+#   ply           -> plyview (mesh/point cloud); gsplatview instead if it's a
+#                    Gaussian-Splat ply (real alpha-blended render, needs a GPU)
 #   code / text   -> micro (in-pane editor, mouse + keyboard)
 set -euo pipefail
 
@@ -41,6 +45,18 @@ play_cloud() {
   png="$(pcdview "$f" ${extra[@]+"${extra[@]}"})"
   [ -n "$png" ] && kitten icat -- "$png"
 }
+# ロボット記述・3D資産・点群/メッシュは各ビューアの別ウィンドウ(uv run --script、初回起動時に依存を自動取得)
+play_urdf() { urdfview "$f" ${extra[@]+"${extra[@]}"}; }
+play_usd()  { usdshow "$f" ${extra[@]+"${extra[@]}"}; }
+# Gaussian-Splat ply (f_dc_0 SH property in the header) -> real render via gsplatview;
+# plain point-cloud/mesh ply -> plyview. Header is ascii even for binary-format ply.
+play_ply() {
+  if head -c 4096 -- "$f" | grep -aq 'f_dc_0'; then
+    gsplatview "$f" ${extra[@]+"${extra[@]}"}
+  else
+    plyview "$f" ${extra[@]+"${extra[@]}"}
+  fi
+}
 
 case "$ext" in
   md|markdown|mdown|mkd|mdwn)
@@ -51,6 +67,12 @@ case "$ext" in
     play_video ;;
   pcd)
     play_cloud ;;
+  urdf)
+    play_urdf ;;
+  usd|usda|usdc|usdz)
+    play_usd ;;
+  ply)
+    play_ply ;;
   py|pyi|js|mjs|cjs|jsx|ts|tsx|vue|svelte|astro|rs|go|c|h|cpp|hpp|cc|cxx|cs|java|kt|kts|scala|rb|php|swift|dart|lua|pl|pm|r|jl|ex|exs|erl|hs|ml|clj|cljs|edn|sql|zig|nim|v|gleam|sol|asm|s|proto|graphql|gql)
     play_code ;;
   sh|bash|zsh|fish|ps1|bat|awk|sed|vim|el|lisp|scm)
