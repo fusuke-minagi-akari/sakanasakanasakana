@@ -16,6 +16,8 @@
 # real per-user config seeded from the .example files stays local:
 **/scripts/standup_config.json
 **/scripts/devices.txt
+**/scripts/stamp_watch_config.json
+**/scripts/amath_config.json
 # machine-local Claude overrides + credentials + history + transcripts:
 **/.claude/settings.local.json
 **/.claude/.credentials.json
