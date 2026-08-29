@@ -1,8 +1,4 @@
 {
-  "enabledPlugins": {
-    "caveman@caveman": false,
-    "ponytail@ponytail": true
-  },
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
     "OTEL_EXPORTER_OTLP_ENDPOINT": "https://d25nyrwm2wqzzf.cloudfront.net",
@@ -11,72 +7,10 @@
     "OTEL_METRICS_EXPORTER": "otlp",
     "OTEL_RESOURCE_ATTRIBUTES": "user.email=fusuke.minagi@akariinc.co.jp"
   },
-  "extraKnownMarketplaces": {
-    "akari-awesome-cc-plugins": {
-      "source": {
-        "source": "git",
-        "url": "https://github.com/AKARI-Inc/awesome-cc.git"
-      }
-    },
-    "caveman": {
-      "source": {
-        "repo": "JuliusBrussee/caveman",
-        "source": "github"
-      }
-    },
-    "ponytail": {
-      "source": {
-        "repo": "DietrichGebert/ponytail",
-        "source": "github"
-      }
-    }
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "python3 ~/.claude/skills/token-usage/session_export.py > /tmp/session_export.log 2>&1",
-            "type": "command"
-          },
-          {
-            "command": "bash \"$HOME/.claude/hooks/herdr-claude-done.sh\"",
-            "timeout": 10,
-            "type": "command"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "command": "bash \"$HOME/.claude/hooks/ponytail-session-mode.sh\"",
-            "timeout": 5,
-            "type": "command"
-          }
-        ]
-      }
-    ]
-  },
-  "language": "english, japanese as secondary",
   "permissions": {
     "allow": [
       "Bash(curl -s* https://pbs.twimg.com/*)"
     ],
-    "defaultMode": "bypassPermissions",
     "deny": [
       "Bash(rm :*)",
       "Bash(rm -rf:*)",
@@ -140,7 +74,6 @@
       "Bash(ssh *rm -rf:*)",
       "Bash(ssh *shutdown:*)",
       "Bash(ssh *reboot:*)",
-      "Bash(git push*)",
       "Bash(git push --force*)",
       "Bash(rm -rf*)",
       "Bash(rm -f*)",
@@ -163,15 +96,83 @@
       "Bash(pip install*)",
       "Bash(brew install*)",
       "Bash(sudo*)"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "model": "sonnet",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/skills/token-usage/session_export.py > /tmp/session_export.log 2>&1"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/herdr-claude-done.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/ponytail-session-mode.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   },
-  "skipAutoPermissionPrompt": true,
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$HOME/.claude/scripts/claude-status/statusline.sh\""
+  },
+  "enabledPlugins": {
+    "caveman@caveman": false,
+    "ponytail@ponytail": true,
+    "pr-review-fix@akari-awesome-cc-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "akari-awesome-cc-plugins": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/AKARI-Inc/awesome-cc.git"
+      }
+    },
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    }
+  },
+  "language": "english, japanese as secondary",
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
-  "statusLine": {
-    "command": "bash \"$HOME/.claude/scripts/claude-status/statusline.sh\"",
-    "type": "command"
-  },
   "theme": "dark-ansi",
-  "tui": "fullscreen"
+  "skipAutoPermissionPrompt": true
 }

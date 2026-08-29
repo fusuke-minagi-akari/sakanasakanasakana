@@ -157,6 +157,7 @@ auth — not `brew`/`apt`:
 | Used by | Integration |
 |---|---|
 | statusline / caveman mode | `caveman` plugin (Claude Code marketplace) |
+| `pr-review-fix` skill | `pr-review-fix` plugin (marketplace: `akari-awesome-cc-plugins`) |
 | `nippo`, `standup`, `research`, `kalmia` | MCP: Notion, Slack, Google (Calendar/Drive/Gmail) |
 | herdr agent state/session hooks | `herdr integration install claude` (herdr-managed) |
 
@@ -184,5 +185,6 @@ diagram/PDF tools. Never touches the layer-1 build.
 ./bootstrap.sh --npm      # also pin npm globals (deps/npm-global.txt); else npx auto-fetches
 ```
 
-**Not auto-installed** (manual — see notes above): `caveman` plugin, MCP servers,
-`melchior-headless` wrapper, BetterDisplay. (`herdr`/`kitty` ARE handled by layer 1.)
+**Not auto-installed** (manual — see notes above): `caveman` plugin, `pr-review-fix`
+plugin (marketplace `akari-awesome-cc-plugins`), MCP servers, `melchior-headless`
+wrapper, BetterDisplay. (`herdr`/`kitty` ARE handled by layer 1.)
