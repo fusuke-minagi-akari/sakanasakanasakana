@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 CLAUDE_DIR = os.path.expanduser("~/.claude")
 PROJECTS_DIR = os.path.join(CLAUDE_DIR, "projects")
 SESSIONS_DIR = os.path.join(CLAUDE_DIR, "sessions")
+# Per-transcript scan results keyed by (mtime, size), so only changed transcripts are re-read
+SCAN_CACHE = os.path.join(CLAUDE_DIR, "sessions_scan_cache.json")
 
 PRICING = {
     "claude-opus-4-6":   {"input": 5.00, "output": 25.00, "cache_create_mult": 1.25, "cache_read_mult": 0.10},
@@ -148,6 +150,37 @@ def scan_transcript(path):
     }
 
 
+def load_scan_cache():
+    try:
+        with open(SCAN_CACHE) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_scan_cache(cache):
+    # Several Stop hooks can run at once; write to a temp file and rename atomically
+    tmp = f"{SCAN_CACHE}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(cache, f)
+        os.replace(tmp, SCAN_CACHE)
+    except OSError:
+        pass
+
+
+def cached_scan(path, cache, new_cache):
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    key = [st.st_mtime, st.st_size]
+    hit = cache.get(path)
+    result = hit["result"] if hit and hit["key"] == key else scan_transcript(path)
+    new_cache[path] = {"key": key, "result": result}
+    return result
+
+
 def main():
     show_all = "--all" in sys.argv
     now = datetime.now(timezone.utc)
@@ -166,13 +199,15 @@ def main():
             except (OSError, json.JSONDecodeError):
                 pass
 
+    cache = load_scan_cache()
+    new_cache = {}
     sessions = []
     for proj_dir in glob.glob(os.path.join(PROJECTS_DIR, "*")):
         if not os.path.isdir(proj_dir):
             continue
         for jsonl in glob.glob(os.path.join(proj_dir, "*.jsonl")):
             sid = os.path.basename(jsonl).replace(".jsonl", "")
-            result = scan_transcript(jsonl)
+            result = cached_scan(jsonl, cache, new_cache)
             if not result:
                 continue
 
@@ -207,6 +242,8 @@ def main():
                 "date": date_str,
                 "last_ts": result["last_ts"] or "",
             })
+
+    save_scan_cache(new_cache)
 
     sessions.sort(key=lambda s: (not s["alive"], s.get("last_ts", "")), reverse=False)
     sessions.sort(key=lambda s: not s["alive"])
