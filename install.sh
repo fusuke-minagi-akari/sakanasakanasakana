@@ -106,6 +106,9 @@ for layer in "${LAYERS[@]}"; do
   done < <(find "$base" -type f | sort)
 done
 
+# Codex shares readable with Claude (same SKILL.md, no copy in shared/.codex).
+link "$REPO/shared/.claude/skills/readable/SKILL.md" "$HOME/.codex/skills/readable/SKILL.md"
+
 # --- render + (re)load every launchd plist on macOS ---
 if [ "$OS" = macos ]; then
   for TMPL in "$REPO"/macos/Library/LaunchAgents/*.plist.tmpl; do
