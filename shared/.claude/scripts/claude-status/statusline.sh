@@ -17,6 +17,9 @@ if [ -f "$BADGE" ]; then
   [ -n "$out" ] && parts+=("$out")
 fi
 
+# account marker — only shown on the backup account (claude-c / swap-c)
+[ "${CLAUDE_CONFIG_DIR:-}" = "$HOME/.claude-c" ] && parts+=("[acct-c]")
+
 if [ -f "$HERE/ratelimit.sh" ]; then
   out=$(printf '%s' "$INPUT" | bash "$HERE/ratelimit.sh" 2>/dev/null)
   [ -n "$out" ] && parts+=("$out")
