@@ -109,6 +109,18 @@ done
 # Codex shares readable with Claude (same SKILL.md, no copy in shared/.codex).
 link "$REPO/shared/.claude/skills/readable/SKILL.md" "$HOME/.codex/skills/readable/SKILL.md"
 
+# Japanese writing skill (yomiyasu, pinned) for Claude + Codex; its run records hold
+# full drafts, so keep them in ~/.yomiyasu instead of each repo's .yomiyasu/.
+if command -v gh >/dev/null; then
+  for agent in claude-code:.claude codex:.codex; do
+    [ -e "$HOME/${agent#*:}/skills/yomiyasu/SKILL.md" ] && { say "  ok    yomiyasu (${agent%%:*})"; continue; }
+    run "gh skill install nanaism/yomiyasu yomiyasu --agent ${agent%%:*} --scope user --pin v2.1.1"
+  done
+else
+  say "  skip  yomiyasu (gh not found)"
+fi
+grep -q YOMIYASU_STATE_DIR "$HOME/.zshenv" 2>/dev/null || run "echo 'export YOMIYASU_STATE_DIR=\"\$HOME/.yomiyasu\"' >> '$HOME/.zshenv'"
+
 # --- render + (re)load every launchd plist on macOS ---
 if [ "$OS" = macos ]; then
   for TMPL in "$REPO"/macos/Library/LaunchAgents/*.plist.tmpl; do
