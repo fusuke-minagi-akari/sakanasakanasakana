@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.usagebar</string>
+	<!-- menu bar Claude/Codex limit monitor; rebuilds the binary when UsageBar.swift is newer -->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>cd __HOME__/.local/usagebar &amp;&amp; { [ UsageBar -nt UsageBar.swift ] || /usr/bin/swiftc -O UsageBar.swift -o UsageBar; }; exec ./UsageBar</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/.local/usagebar/err.log</string>
+</dict>
+</plist>

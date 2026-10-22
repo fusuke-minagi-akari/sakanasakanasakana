@@ -138,6 +138,28 @@ Test without waiting for a real outage — fixtures are built locally, no networ
 
 ---
 
+## 2c. Menu bar usage monitor (macOS only)
+
+`~/.local/usagebar/` shows 5-hour + weekly limit usage for every logged-in
+Claude account (`~/.claude` plus each `~/.claude-<name>`, found via the keychain)
+and Codex in the menu bar. Bar colour = pace (green lasts until reset, orange runs
+out before reset, red at limit / out soon); grey = data >10 min old. No LLM
+tokens: it reads the same usage endpoints as the apps' settings pages
+(Claude every 3 min per account — it 429s at 1/min — Codex every 1 min).
+
+launchd job `dev.usagebar` (from `macos/Library/LaunchAgents/dev.usagebar.plist.tmpl`)
+rebuilds the Swift binary with `swiftc` whenever `UsageBar.swift` is newer, then runs it.
+```sh
+launchctl print gui/$UID/dev.usagebar | grep -E 'state|last exit'
+python3 -I ~/.local/usagebar/test_usage.py     # fetcher self-check (no network)
+~/.local/usagebar/UsageBar --selftest          # pace colour rules
+~/.local/usagebar/UsageBar --snapshot /tmp     # render icon + menu to light/dark PNG
+```
+An account whose Claude login expired shows grey until you run `claude` on it
+again (the monitor never refreshes tokens, so it can't log Claude Code out).
+
+---
+
 ## 3. herdr-managed Claude hook
 
 `~/.claude/hooks/herdr-agent-state.sh` is generated/overwritten by herdr and is

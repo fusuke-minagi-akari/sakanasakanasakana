@@ -16,6 +16,7 @@ optional · 🍎 macOS-builtin · 🐧 Linux-only.
 | `git` | daemon, workflows | `git` | `git` |
 | `python3` | hooks, skills | 🍎 builtin | `python3` `python3-pip` |
 | `jq` | JSON in daemon/skills | `jq` | `jq` |
+| `swiftc` | menu bar usage monitor (macOS only) | 🍎 Xcode CLT (`xcode-select --install`) | — |
 | `coreutils` | `md5sum` on Linux (macOS uses builtin `md5`) | 🍎 builtin | `coreutils` |
 
 ---
