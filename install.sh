@@ -106,8 +106,10 @@ for layer in "${LAYERS[@]}"; do
   done < <(find "$base" -type f | sort)
 done
 
-# Codex shares readable with Claude (same SKILL.md, no copy in shared/.codex).
-link "$REPO/shared/.claude/skills/readable/SKILL.md" "$HOME/.codex/skills/readable/SKILL.md"
+# Codex shares readable/wol with Claude (same SKILL.md, no copy in shared/.codex).
+# Codex skips a symlinked SKILL.md, so link the whole skill dir.
+link "$REPO/shared/.claude/skills/readable" "$HOME/.codex/skills/readable"
+link "$REPO/shared/.claude/skills/wol" "$HOME/.codex/skills/wol"
 
 # Japanese writing skill (yomiyasu, pinned) for Claude + Codex; its run records hold
 # full drafts, so keep them in ~/.yomiyasu instead of each repo's .yomiyasu/.
@@ -120,6 +122,20 @@ else
   say "  skip  yomiyasu (gh not found)"
 fi
 grep -q YOMIYASU_STATE_DIR "$HOME/.zshenv" 2>/dev/null || run "echo 'export YOMIYASU_STATE_DIR=\"\$HOME/.yomiyasu\"' >> '$HOME/.zshenv'"
+
+# Codex status line (ctx / 5h / weekly, like the Claude statusline). config.toml holds
+# per-machine trust entries so it isn't tracked; just ensure the key under [tui].
+CODEX_CFG="$HOME/.codex/config.toml"
+CODEX_STATUS='status_line = ["model-with-reasoning", "context-used", "five-hour-limit", "weekly-limit", "git-branch"]'
+if grep -q '^status_line' "$CODEX_CFG" 2>/dev/null; then
+  say "  ok    codex status_line"
+elif grep -q '^\[tui\]' "$CODEX_CFG" 2>/dev/null; then
+  run "sed -i.bak '/^\[tui\]/a\\
+$CODEX_STATUS
+' '$CODEX_CFG'"
+else
+  run "mkdir -p '$HOME/.codex' && printf '\n[tui]\n%s\n' '$CODEX_STATUS' >> '$CODEX_CFG'"
+fi
 
 # --- render + (re)load every launchd plist on macOS ---
 if [ "$OS" = macos ]; then

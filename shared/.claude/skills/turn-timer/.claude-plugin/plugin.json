@@ -1,0 +1,6 @@
+{
+  "name": "turn-timer",
+  "author": { "name": "fusuke.minagi" },
+  "description": "Toast each main-loop turn's duration and token use",
+  "version": "0.1.0"
+}

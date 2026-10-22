@@ -1,0 +1,6 @@
+{
+  "name": "nda-guard",
+  "author": { "name": "fusuke.minagi" },
+  "description": "Refuse outbound tool calls carrying AWS IDs/ARNs, local NDA terms, or gendered pronouns",
+  "version": "0.1.0"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "artifact-archive",
+  "author": { "name": "fusuke.minagi" },
+  "description": "Refuse Artifact publishes from temp dirs; keep sources in ~/Desktop/claude-outputs/artifacts/",
+  "version": "0.1.0"
+}
