@@ -46,8 +46,8 @@ case "${SHELL##*/}" in zsh) RC="$HOME/.zshrc" ;; *) RC="$HOME/.bashrc" ;; esac
 touch "$RC"
 add() { grep -qF "alias $1=" "$RC" || { echo "alias $1='$2'" >> "$RC"; echo "added alias $1 to $RC"; }; }
 add claude-c      'CLAUDE_CONFIG_DIR="$HOME/.claude-c" claude'
-add swap-c        'CLAUDE_CONFIG_DIR="$HOME/.claude-c" claude --continue'
-add swap-a        'claude --continue'
+add swap-c        'bash "$HOME/.claude/scripts/claude-swap.sh" b'
+add swap-a        'bash "$HOME/.claude/scripts/claude-swap.sh" a'
 add claude-c-sync 'bash "$HOME/.claude/scripts/claude-c.sh"'
 
 grep -q '"emailAddress"' "$B/.claude.json" 2>/dev/null \
