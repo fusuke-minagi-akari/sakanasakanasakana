@@ -5,7 +5,8 @@
     "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
     "OTEL_LOGS_EXPORTER": "otlp",
     "OTEL_METRICS_EXPORTER": "otlp",
-    "OTEL_RESOURCE_ATTRIBUTES": "user.email=fusuke.minagi@akariinc.co.jp"
+    "OTEL_RESOURCE_ATTRIBUTES": "user.email=fusuke.minagi@akariinc.co.jp",
+    "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"
   },
   "permissions": {
     "allow": [
@@ -97,7 +98,7 @@
       "Bash(brew install*)",
       "Bash(sudo*)"
     ],
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "auto"
   },
   "model": "sonnet",
   "hooks": {
