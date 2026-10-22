@@ -27,7 +27,7 @@ resume_agents_on_restore = true
 
 # --- Keybinds (mirrors the linux overlay for cross-device muscle memory) ---
 [keys]
-prefix = "alt+x"
+prefix = "cmd+x"
 # panes: arrow keys
 focus_pane_left = "prefix+left"
 focus_pane_down = "prefix+down"
@@ -39,8 +39,61 @@ next_workspace = "prefix+shift+down"
 # agents: walk priority order (panel sorted by priority)
 previous_agent = "prefix+k"
 next_agent = "prefix+j"
-# jump straight to agent N by priority rank
-focus_agent = "prefix+alt+1..9"
+
+# Jump to the Nth finished agent, top-to-bottom in Herdr's agent list.
+[[keys.command]]
+key = "prefix+1"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 1"
+description = "focus finished agent 1"
+
+[[keys.command]]
+key = "prefix+2"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 2"
+description = "focus finished agent 2"
+
+[[keys.command]]
+key = "prefix+3"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 3"
+description = "focus finished agent 3"
+
+[[keys.command]]
+key = "prefix+4"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 4"
+description = "focus finished agent 4"
+
+[[keys.command]]
+key = "prefix+5"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 5"
+description = "focus finished agent 5"
+
+[[keys.command]]
+key = "prefix+6"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 6"
+description = "focus finished agent 6"
+
+[[keys.command]]
+key = "prefix+7"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 7"
+description = "focus finished agent 7"
+
+[[keys.command]]
+key = "prefix+8"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 8"
+description = "focus finished agent 8"
+
+[[keys.command]]
+key = "prefix+9"
+type = "shell"
+command = "~/.config/herdr/focus-done-agent.sh 9"
+description = "focus finished agent 9"
 
 # spawn a Claude pane
 [[keys.command]]
