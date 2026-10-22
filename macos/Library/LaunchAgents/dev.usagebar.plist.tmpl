@@ -9,12 +9,16 @@
 	<array>
 		<string>/bin/sh</string>
 		<string>-c</string>
-		<string>cd __HOME__/.local/usagebar &amp;&amp; { [ UsageBar -nt UsageBar.swift ] || /usr/bin/swiftc -O UsageBar.swift -o UsageBar; }; exec ./UsageBar</string>
+		<string>cd __HOME__/.local/usagebar &amp;&amp; { [ UsageBar -nt UsageBar.swift ] || /usr/bin/swiftc -O UsageBar.swift -o UsageBar || [ -x UsageBar ] || exit 0; }; exec ./UsageBar</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
+	<!-- restart on crash only: menu "Quit" (exit 0) and "no swiftc" (exit 0) stay stopped -->
 	<key>KeepAlive</key>
-	<true/>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
 	<key>StandardErrorPath</key>
 	<string>__HOME__/.local/usagebar/err.log</string>
 </dict>

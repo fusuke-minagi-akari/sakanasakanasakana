@@ -143,7 +143,9 @@ Test without waiting for a real outage — fixtures are built locally, no networ
 `~/.local/usagebar/` shows 5-hour + weekly limit usage for every logged-in
 Claude account (`~/.claude` plus each `~/.claude-<name>`, found via the keychain)
 and Codex in the menu bar. Bar colour = pace (green lasts until reset, orange runs
-out before reset, red at limit / out soon); grey = data >10 min old. No LLM
+out before reset, red at limit / out soon; in the first 10% of a window it uses
+plain 70%/90% thresholds); grey badge + faded bars = last fetch failed and the data
+is >10 min old. Codex is shown only if `~/.codex/auth.json` exists. No LLM
 tokens: it reads the same usage endpoints as the apps' settings pages
 (Claude every 3 min per account — it 429s at 1/min — Codex every 1 min).
 
@@ -153,8 +155,9 @@ rebuilds the Swift binary with `swiftc` whenever `UsageBar.swift` is newer, then
 launchctl print gui/$UID/dev.usagebar | grep -E 'state|last exit'
 python3 -I ~/.local/usagebar/test_usage.py     # fetcher self-check (no network)
 ~/.local/usagebar/UsageBar --selftest          # pace colour rules
-~/.local/usagebar/UsageBar --snapshot /tmp     # render icon + menu to light/dark PNG
+~/.local/usagebar/UsageBar --snapshot /tmp     # render icon + menu to light/dark PNG (real fetch)
 ```
+Menu "Quit" stays quit until next login or `launchctl kickstart gui/$UID/dev.usagebar`.
 An account whose Claude login expired shows grey until you run `claude` on it
 again (the monitor never refreshes tokens, so it can't log Claude Code out).
 

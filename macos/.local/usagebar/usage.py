@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Print Claude (2 accounts) + Codex limit usage as JSON for UsageBar.swift."""
-import glob, hashlib, json, os, subprocess, time, urllib.error, urllib.request
+"""Print Claude (every logged-in account) + Codex limit usage as JSON for UsageBar.swift."""
+import glob, hashlib, json, os, re, subprocess, time, urllib.error, urllib.request
 from datetime import datetime
 
 CACHE = os.path.expanduser("~/.local/usagebar/cache.json")
@@ -15,7 +15,11 @@ def claude_accounts():
                                if os.path.isdir(d)]
     for label, d in dirs:
         svc = "Claude Code-credentials" + (f"-{hashlib.sha256(d.encode()).hexdigest()[:8]}" if d else "")
-        if subprocess.run(["security", "find-generic-password", "-s", svc], capture_output=True, timeout=10).returncode == 0:
+        try:
+            found = subprocess.run(["security", "find-generic-password", "-s", svc], capture_output=True, timeout=10).returncode == 0
+        except Exception:  # hung keychain: skip this account rather than failing every source
+            found = False
+        if found:
             yield label, svc
 
 
@@ -26,7 +30,8 @@ def get(url, headers):
 
 
 def iso(s):
-    return datetime.fromisoformat(s).timestamp() if s else None
+    # strip fractional seconds / "Z": python <3.11 (CLT python3 on a fresh Mac) rejects both
+    return datetime.fromisoformat(re.sub(r"\.\d+", "", s).replace("Z", "+00:00")).timestamp() if s else None
 
 
 def claude(service):
@@ -77,7 +82,9 @@ def main():
         cache = json.load(open(CACHE))
     except Exception:  # missing or corrupt: start fresh rather than dying every run
         cache = {}
-    sources = [(n, lambda s=s: claude(s)) for n, s in claude_accounts()] + [("codex", codex)]
+    sources = [(n, lambda s=s: claude(s)) for n, s in claude_accounts()]
+    if os.path.exists(os.path.expanduser("~/.codex/auth.json")):  # codex not set up: no dead badge
+        sources.append(("codex", codex))
     out = []
     for name, fn in sources:
         c = cache.setdefault(name, {})
