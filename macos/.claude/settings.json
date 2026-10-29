@@ -122,6 +122,18 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/skills/offload/hook.py\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
