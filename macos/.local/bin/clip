@@ -16,14 +16,25 @@ esc_of() { local p; p="$(abspath "$1")"; p=${p//\\/\\\\}; printf '%s' "${p//\"/\
 
 for f in "$@"; do [ -e "$f" ] || { echo "clip: no such path: $f" >&2; exit 1; }; done
 
+# A directory means "the files in it" (chat apps refuse a pasted folder). Top level only, no dotfiles.
+paths=()
+for f in "$@"; do
+  if [ -d "$f" ]; then
+    for g in "${f%/}"/*; do [ -f "$g" ] && paths+=("$(abspath "$g")"); done
+  else
+    paths+=("$(abspath "$f")")
+  fi
+done
+[ "${#paths[@]}" -gt 0 ] || { echo "clip: no files in: $*" >&2; exit 1; }
+set -- "${paths[@]}"
+
 if [ "$#" -eq 1 ]; then
   # single file → a real file reference («class furl»), pastes as a file in Finder/Mail/chat
   osascript -e "set the clipboard to POSIX file \"$(esc_of "$1")\""
 else
-  # multiple → list of file references (best-effort; some targets accept only one)
-  items=""
-  for f in "$@"; do items+="POSIX file \"$(esc_of "$f")\", "; done
-  osascript -e "set the clipboard to {${items%, }}"
+  # multiple → a filename list through NSPasteboard. An AppleScript list of POSIX files lands as a bare
+  # «list» that nothing can paste, and writeObjects(NSURL) is lazy: items vanish once this process exits.
+  osascript -l JavaScript -e 'ObjC.import("AppKit"); function run(argv){ const pb=$.NSPasteboard.generalPasteboard; pb.clearContents; pb.declareTypesOwner($(["NSFilenamesPboardType"]), null); if(!pb.setPropertyListForType($(argv), "NSFilenamesPboardType")) throw new Error("pasteboard write failed"); }' "$@" >/dev/null
 fi
 
 n="$#"
